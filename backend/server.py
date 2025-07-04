@@ -465,6 +465,35 @@ class RoleCreate(BaseModel):
     name: str
     permissions: Dict[str, Any] = {}
 
+# Company endpoints
+@api_router.post("/company", response_model=Company)
+async def create_company(company: CompanyCreate):
+    company_dict = company.dict()
+    company_obj = Company(**company_dict)
+    await db.companies.insert_one(company_obj.dict())
+    return company_obj
+
+@api_router.get("/company", response_model=Company)
+async def get_company():
+    company = await db.companies.find_one()
+    if not company:
+        # Return default company
+        return Company(name="QBClone", industry="general")
+    return Company(**company)
+
+@api_router.put("/company/{company_id}", response_model=Company)
+async def update_company(company_id: str, company_update: CompanyCreate):
+    company = await db.companies.find_one({"id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    update_data = company_update.dict()
+    update_data["updated_at"] = datetime.utcnow()
+    
+    await db.companies.update_one({"id": company_id}, {"$set": update_data})
+    updated_company = await db.companies.find_one({"id": company_id})
+    return Company(**updated_company)
+
 # Account endpoints
 @api_router.post("/accounts", response_model=Account)
 async def create_account(account: AccountCreate):
