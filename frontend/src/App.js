@@ -2970,12 +2970,264 @@ const ChecksPage = ({ accounts, vendors, items, onRefresh }) => (
   </div>
 );
 
-const TransfersPage = ({ accounts, onRefresh }) => (
-  <div>
-    <h2 className="text-2xl font-bold text-gray-900 mb-6">Transfer Funds</h2>
-    <p className="text-gray-600">Fund transfer functionality coming soon...</p>
-  </div>
-);
+// Transfer Funds Page Component (Full Implementation)
+const TransfersPage = ({ accounts, onRefresh }) => {
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    from_account_id: '',
+    to_account_id: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    memo: ''
+  });
+  const [transfers, setTransfers] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchTransfers();
+  }, []);
+
+  const fetchTransfers = async () => {
+    try {
+      // For now, we'll get transfers from journal entries with "Transfer" in description
+      const response = await axios.get(`${API}/journal-entries`);
+      const transferEntries = response.data.filter(entry => 
+        entry.description.includes('Transfer')
+      );
+      
+      // Group transfer entries by transaction_id
+      const transfersMap = {};
+      transferEntries.forEach(entry => {
+        if (!transfersMap[entry.transaction_id]) {
+          transfersMap[entry.transaction_id] = {
+            id: entry.transaction_id,
+            date: entry.date,
+            entries: []
+          };
+        }
+        transfersMap[entry.transaction_id].entries.push(entry);
+      });
+
+      const transfersList = Object.values(transfersMap).map(transfer => {
+        const fromEntry = transfer.entries.find(e => e.credit > 0);
+        const toEntry = transfer.entries.find(e => e.debit > 0);
+        return {
+          ...transfer,
+          from_account_id: fromEntry?.account_id,
+          to_account_id: toEntry?.account_id,
+          amount: toEntry?.debit || fromEntry?.credit || 0
+        };
+      });
+
+      setTransfers(transfersList);
+    } catch (error) {
+      console.error('Error fetching transfers:', error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await axios.post(`${API}/transfers`, {
+        from_account_id: formData.from_account_id,
+        to_account_id: formData.to_account_id,
+        amount: parseFloat(formData.amount),
+        date: new Date(formData.date),
+        memo: formData.memo
+      });
+      
+      setShowModal(false);
+      resetForm();
+      onRefresh();
+      fetchTransfers();
+    } catch (error) {
+      console.error('Error creating transfer:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      from_account_id: '',
+      to_account_id: '',
+      amount: '',
+      date: new Date().toISOString().split('T')[0],
+      memo: ''
+    });
+  };
+
+  const getAccountName = (accountId) => {
+    const account = accounts.find(acc => acc.id === accountId);
+    return account ? account.name : 'Unknown Account';
+  };
+
+  const bankAccounts = accounts.filter(acc => 
+    acc.account_type === 'Asset' && 
+    (acc.detail_type === 'Checking' || acc.detail_type === 'Savings')
+  );
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Transfer Funds</h2>
+        <button
+          onClick={() => setShowModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          + New Transfer
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From Account</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To Account</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transfer ID</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {transfers.map((transfer) => (
+              <tr key={transfer.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {new Date(transfer.date).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {getAccountName(transfer.from_account_id)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {getAccountName(transfer.to_account_id)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  ${transfer.amount.toLocaleString()}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {transfer.id.slice(-8)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Transfer Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Transfer Funds</h3>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Transfer From *</label>
+                <select
+                  value={formData.from_account_id}
+                  onChange={(e) => setFormData({...formData, from_account_id: e.target.value})}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select Account</option>
+                  {bankAccounts.map(account => (
+                    <option key={account.id} value={account.id}>
+                      {account.name} (${account.balance.toLocaleString()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Transfer To *</label>
+                <select
+                  value={formData.to_account_id}
+                  onChange={(e) => setFormData({...formData, to_account_id: e.target.value})}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select Account</option>
+                  {bankAccounts.filter(acc => acc.id !== formData.from_account_id).map(account => (
+                    <option key={account.id} value={account.id}>
+                      {account.name} (${account.balance.toLocaleString()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Transfer Date *</label>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Memo</label>
+                <textarea
+                  value={formData.memo}
+                  onChange={(e) => setFormData({...formData, memo: e.target.value})}
+                  rows={2}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Optional transfer description"
+                />
+              </div>
+
+              {/* Validation Warning */}
+              {formData.from_account_id && formData.amount && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Warning:</strong> Ensure the source account has sufficient funds. 
+                    Current balance: ${bankAccounts.find(acc => acc.id === formData.from_account_id)?.balance.toLocaleString() || '0'}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false);
+                    resetForm();
+                  }}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  disabled={loading}
+                >
+                  {loading ? 'Processing...' : 'Transfer Funds'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ReconcilePage = ({ accounts, transactions }) => (
   <div>
