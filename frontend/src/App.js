@@ -2026,12 +2026,486 @@ const ItemsPage = ({ items, accounts, vendors, onRefresh }) => {
   );
 };
 
-const InvoicesPage = ({ transactions, customers, items, accounts, classes, locations, terms, onRefresh }) => (
-  <div>
-    <h2 className="text-2xl font-bold text-gray-900 mb-6">Invoices</h2>
-    <p className="text-gray-600">Invoice management functionality coming soon...</p>
-  </div>
-);
+// Invoices Page Component (Full Implementation)
+const InvoicesPage = ({ transactions, customers, items, accounts, classes, locations, terms, onRefresh }) => {
+  const [showModal, setShowModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [formData, setFormData] = useState({
+    customer_id: '',
+    date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    reference_number: '',
+    po_number: '',
+    terms_id: '',
+    bill_to_address: '',
+    ship_to_address: '',
+    line_items: [{ item_id: '', description: '', quantity: 1, rate: 0, amount: 0, account_id: '', class_id: '', location_id: '' }],
+    tax_rate: 0,
+    memo: ''
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const submitData = {
+        ...formData,
+        transaction_type: 'Invoice',
+        date: new Date(formData.date),
+        due_date: formData.due_date ? new Date(formData.due_date) : null,
+        tax_rate: parseFloat(formData.tax_rate),
+        line_items: formData.line_items.map(item => ({
+          ...item,
+          quantity: parseFloat(item.quantity),
+          rate: parseFloat(item.rate),
+          amount: parseFloat(item.amount)
+        }))
+      };
+
+      if (selectedInvoice) {
+        await axios.put(`${API}/transactions/${selectedInvoice.id}`, submitData);
+      } else {
+        await axios.post(`${API}/transactions`, submitData);
+      }
+      
+      setShowModal(false);
+      setSelectedInvoice(null);
+      resetForm();
+      onRefresh();
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      customer_id: '',
+      date: new Date().toISOString().split('T')[0],
+      due_date: '',
+      reference_number: '',
+      po_number: '',
+      terms_id: '',
+      bill_to_address: '',
+      ship_to_address: '',
+      line_items: [{ item_id: '', description: '', quantity: 1, rate: 0, amount: 0, account_id: '', class_id: '', location_id: '' }],
+      tax_rate: 0,
+      memo: ''
+    });
+  };
+
+  const handleAddLineItem = () => {
+    setFormData({
+      ...formData,
+      line_items: [...formData.line_items, { item_id: '', description: '', quantity: 1, rate: 0, amount: 0, account_id: '', class_id: '', location_id: '' }]
+    });
+  };
+
+  const handleLineItemChange = (index, field, value) => {
+    const newLineItems = [...formData.line_items];
+    newLineItems[index][field] = value;
+    
+    if (field === 'quantity' || field === 'rate') {
+      newLineItems[index].amount = parseFloat(newLineItems[index].quantity) * parseFloat(newLineItems[index].rate);
+    }
+    
+    if (field === 'item_id' && value) {
+      const selectedItem = items.find(item => item.id === value);
+      if (selectedItem) {
+        newLineItems[index].description = selectedItem.description || selectedItem.name;
+        newLineItems[index].rate = selectedItem.sales_price || 0;
+        newLineItems[index].amount = parseFloat(newLineItems[index].quantity) * parseFloat(selectedItem.sales_price || 0);
+        newLineItems[index].account_id = selectedItem.income_account_id || '';
+      }
+    }
+    
+    setFormData({ ...formData, line_items: newLineItems });
+  };
+
+  const removeLineItem = (index) => {
+    const newLineItems = formData.line_items.filter((_, i) => i !== index);
+    setFormData({ ...formData, line_items: newLineItems });
+  };
+
+  const handleEdit = (invoice) => {
+    setSelectedInvoice(invoice);
+    setFormData({
+      customer_id: invoice.customer_id || '',
+      date: new Date(invoice.date).toISOString().split('T')[0],
+      due_date: invoice.due_date ? new Date(invoice.due_date).toISOString().split('T')[0] : '',
+      reference_number: invoice.reference_number || '',
+      po_number: invoice.po_number || '',
+      terms_id: invoice.terms_id || '',
+      bill_to_address: invoice.bill_to_address || '',
+      ship_to_address: invoice.ship_to_address || '',
+      line_items: invoice.line_items.length > 0 ? invoice.line_items : [{ item_id: '', description: '', quantity: 1, rate: 0, amount: 0, account_id: '', class_id: '', location_id: '' }],
+      tax_rate: invoice.tax_rate || 0,
+      memo: invoice.memo || ''
+    });
+    setShowModal(true);
+  };
+
+  const calculateSubtotal = () => {
+    return formData.line_items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  };
+
+  const calculateTax = () => {
+    const subtotal = calculateSubtotal();
+    return subtotal * (parseFloat(formData.tax_rate) / 100);
+  };
+
+  const calculateTotal = () => {
+    return calculateSubtotal() + calculateTax();
+  };
+
+  const incomeAccounts = accounts.filter(acc => acc.account_type === 'Income');
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Invoices</h2>
+        <button
+          onClick={() => setShowModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          + Create Invoice
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {transactions.map((invoice) => {
+              const customer = customers.find(c => c.id === invoice.customer_id);
+              return (
+                <tr key={invoice.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {invoice.transaction_number}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {customer?.name || 'Unknown Customer'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {new Date(invoice.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    ${invoice.total.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      invoice.status === 'Paid' ? 'bg-green-100 text-green-800' :
+                      invoice.status === 'Open' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {invoice.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <button
+                      onClick={() => handleEdit(invoice)}
+                      className="text-blue-600 hover:text-blue-800 mr-3"
+                    >
+                      Edit
+                    </button>
+                    <button className="text-green-600 hover:text-green-800 mr-3">
+                      Print
+                    </button>
+                    <button className="text-purple-600 hover:text-purple-800">
+                      Email
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Invoice Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {selectedInvoice ? 'Edit Invoice' : 'Create New Invoice'}
+            </h3>
+            
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Header Information */}
+              <div className="grid grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
+                  <select
+                    value={formData.customer_id}
+                    onChange={(e) => setFormData({...formData, customer_id: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">Select Customer</option>
+                    {customers.map(customer => (
+                      <option key={customer.id} value={customer.id}>{customer.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date *</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({...formData, date: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                  <input
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) => setFormData({...formData, due_date: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number</label>
+                  <input
+                    type="text"
+                    value={formData.reference_number}
+                    onChange={(e) => setFormData({...formData, reference_number: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">PO Number</label>
+                  <input
+                    type="text"
+                    value={formData.po_number}
+                    onChange={(e) => setFormData({...formData, po_number: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Terms</label>
+                  <select
+                    value={formData.terms_id}
+                    onChange={(e) => setFormData({...formData, terms_id: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select Terms</option>
+                    {terms.map(term => (
+                      <option key={term.id} value={term.id}>{term.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Addresses */}
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bill To Address</label>
+                  <textarea
+                    value={formData.bill_to_address}
+                    onChange={(e) => setFormData({...formData, bill_to_address: e.target.value})}
+                    rows={3}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ship To Address</label>
+                  <textarea
+                    value={formData.ship_to_address}
+                    onChange={(e) => setFormData({...formData, ship_to_address: e.target.value})}
+                    rows={3}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Line Items */}
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <label className="block text-sm font-medium text-gray-700">Line Items</label>
+                  <button
+                    type="button"
+                    onClick={handleAddLineItem}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    + Add Line Item
+                  </button>
+                </div>
+                
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Item</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Description</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Rate</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Amount</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Account</th>
+                        <th className="px-3 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.line_items.map((item, index) => (
+                        <tr key={index} className="border-t border-gray-200">
+                          <td className="px-3 py-2">
+                            <select
+                              value={item.item_id}
+                              onChange={(e) => handleLineItemChange(index, 'item_id', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            >
+                              <option value="">Select Item</option>
+                              {items.map(item => (
+                                <option key={item.id} value={item.id}>{item.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => handleLineItemChange(index, 'description', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.quantity}
+                              onChange={(e) => handleLineItemChange(index, 'quantity', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.rate}
+                              onChange={(e) => handleLineItemChange(index, 'rate', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.amount}
+                              readOnly
+                              className="w-full p-2 border border-gray-300 rounded text-sm bg-gray-50"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <select
+                              value={item.account_id}
+                              onChange={(e) => handleLineItemChange(index, 'account_id', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            >
+                              <option value="">Select Account</option>
+                              {incomeAccounts.map(account => (
+                                <option key={account.id} value={account.id}>{account.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            {formData.line_items.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeLineItem(index)}
+                                className="text-red-600 hover:text-red-800 text-sm"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Totals */}
+              <div className="flex justify-end">
+                <div className="w-64 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Subtotal:</span>
+                    <span className="text-sm font-medium">${calculateSubtotal().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Tax Rate:</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.tax_rate}
+                      onChange={(e) => setFormData({...formData, tax_rate: e.target.value})}
+                      className="w-16 p-1 border border-gray-300 rounded text-sm text-right"
+                    />
+                    <span className="text-sm text-gray-600">%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Tax Amount:</span>
+                    <span className="text-sm font-medium">${calculateTax().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="text-lg font-medium">Total:</span>
+                    <span className="text-lg font-bold">${calculateTotal().toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Memo</label>
+                <textarea
+                  value={formData.memo}
+                  onChange={(e) => setFormData({...formData, memo: e.target.value})}
+                  rows={2}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false);
+                    setSelectedInvoice(null);
+                    resetForm();
+                  }}
+                  className="px-6 py-3 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  {selectedInvoice ? 'Update Invoice' : 'Create Invoice'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SalesReceiptsPage = ({ transactions, customers, items, accounts, onRefresh }) => (
   <div>
