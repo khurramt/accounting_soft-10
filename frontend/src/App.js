@@ -6,6 +6,9 @@ import ProfessionalLayout from "./components/ProfessionalLayout";
 import CustomerCenter from "./components/CustomerCenter";
 import EnhancedDashboard from "./components/EnhancedDashboard";
 import TransactionForm from "./components/TransactionForm";
+import TransactionFormPage from "./components/TransactionFormPage";
+import BankingCenter from "./components/BankingCenter";
+import ReportsCenter from "./components/ReportsCenter";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
