@@ -4,7 +4,12 @@ import GlobalSearch from './GlobalSearch';
 const ProfessionalLayout = ({ children, currentPage, onPageChange, companyName }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchNavigation = (page, id) => {
+    onPageChange(page);
+    setShowGlobalSearch(false);
+    // Additional logic to select specific item if needed
+  };
 
   const menuItems = [
     {
