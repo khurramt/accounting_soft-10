@@ -10,6 +10,8 @@ const API = `${BACKEND_URL}/api`;
 // Main App Component
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [companyName, setCompanyName] = useState('');
   const [accounts, setAccounts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -26,10 +28,25 @@ function App() {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch all data on component mount
+  // Check if welcome wizard should be shown
   useEffect(() => {
-    fetchAllData();
+    const setupComplete = localStorage.getItem('qbclone_company_setup');
+    const storedCompanyName = localStorage.getItem('qbclone_company_name');
+    
+    if (!setupComplete) {
+      setShowWelcome(true);
+    } else {
+      setCompanyName(storedCompanyName || 'QBClone');
+      fetchAllData();
+    }
   }, []);
+
+  const handleWelcomeComplete = () => {
+    setShowWelcome(false);
+    const storedCompanyName = localStorage.getItem('qbclone_company_name');
+    setCompanyName(storedCompanyName || 'QBClone');
+    fetchAllData();
+  };
 
   const fetchAllData = async () => {
     setLoading(true);
