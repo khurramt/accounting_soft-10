@@ -263,6 +263,13 @@ const ProfessionalLayout = ({ children, currentPage, onPageChange, companyName }
           </div>
         </div>
       </div>
+
+      {/* Global Search Modal */}
+      <GlobalSearch
+        isOpen={showGlobalSearch}
+        onClose={() => setShowGlobalSearch(false)}
+        onNavigate={handleSearchNavigation}
+      />
     </div>
   );
 };
