@@ -3427,4 +3427,47 @@ const ListsPage = ({ classes, locations, terms, priceLevels, onRefreshClasses, o
   </div>
 );
 
+// Additional Page Components for New Navigation Items
+const PreferencesPage = () => (
+  <div>
+    <h2 className="text-2xl font-bold text-gray-900 mb-6">Preferences</h2>
+    <p className="text-gray-600">System preferences and settings coming soon...</p>
+  </div>
+);
+
+const PayrollPage = ({ employees, onRefresh }) => (
+  <div>
+    <h2 className="text-2xl font-bold text-gray-900 mb-6">Payroll Center</h2>
+    <p className="text-gray-600">Payroll processing functionality coming soon...</p>
+  </div>
+);
+
+const TimeTrackingPage = ({ employees, onRefresh }) => (
+  <div>
+    <h2 className="text-2xl font-bold text-gray-900 mb-6">Time Tracking</h2>
+    <p className="text-gray-600">Employee time tracking functionality coming soon...</p>
+  </div>
+);
+
+const DepositsPage = ({ accounts, transactions, onRefresh }) => (
+  <div>
+    <h2 className="text-2xl font-bold text-gray-900 mb-6">Make Deposits</h2>
+    <p className="text-gray-600">Deposit functionality coming soon...</p>
+  </div>
+);
+
+const BankFeedsPage = ({ accounts, onRefresh }) => (
+  <div>
+    <h2 className="text-2xl font-bold text-gray-900 mb-6">Bank Feeds</h2>
+    <p className="text-gray-600">Bank feed integration coming soon...</p>
+  </div>
+);
+
+const BudgetsPage = ({ accounts, onRefresh }) => (
+  <div>
+    <h2 className="text-2xl font-bold text-gray-900 mb-6">Budgets & Forecasting</h2>
+    <p className="text-gray-600">Budget management functionality coming soon...</p>
+  </div>
+);
+
 export default App;
