@@ -3,6 +3,9 @@ import "./App.css";
 import axios from "axios";
 import WelcomeWizard from "./components/WelcomeWizard";
 import ProfessionalLayout from "./components/ProfessionalLayout";
+import CustomerCenter from "./components/CustomerCenter";
+import EnhancedDashboard from "./components/EnhancedDashboard";
+import TransactionForm from "./components/TransactionForm";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
