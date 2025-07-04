@@ -96,6 +96,37 @@ class PayType(str, Enum):
     COMMISSION = "Commission"
 
 # Data Models
+class Company(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    legal_name: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    country: str = "United States"
+    phone: Optional[str] = None
+    fax: Optional[str] = None
+    email: Optional[str] = None
+    industry: str = "general"
+    settings: Dict[str, Any] = {}
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CompanyCreate(BaseModel):
+    name: str
+    legal_name: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    country: str = "United States"
+    phone: Optional[str] = None
+    fax: Optional[str] = None
+    email: Optional[str] = None
+    industry: str = "general"
+    settings: Dict[str, Any] = {}
+
 class Account(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
