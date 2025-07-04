@@ -566,8 +566,8 @@ function App() {
           {currentPage === 'purchase-orders' && <TransactionFormPage transactionType="Purchase Order" vendors={vendors} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
           {currentPage === 'checks' && <ChecksPage accounts={accounts} vendors={vendors} items={items} onRefresh={fetchTransactions} />}
           {currentPage === 'transfers' && <TransfersPage accounts={accounts} onRefresh={fetchAccounts} />}
-          {currentPage === 'reconcile' && <ReconcilePage accounts={accounts} transactions={transactions} />}
-          {currentPage === 'reports' && <ReportsPage />}
+          {currentPage === 'reconcile' && <BankingCenter accounts={accounts} transactions={transactions} onRefresh={fetchAccounts} />}
+          {currentPage === 'reports' && <ReportsCenter />}
           {currentPage === 'memorized-transactions' && <MemorizedTransactionsPage memorizedTransactions={memorizedTransactions} onRefresh={fetchMemorizedTransactions} />}
           {currentPage === 'calendar' && <CalendarPage todos={todos} transactions={transactions} onRefresh={fetchTodos} />}
           {currentPage === 'audit-trail' && <AuditTrailPage />}
