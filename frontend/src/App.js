@@ -2528,12 +2528,426 @@ const ReceivePaymentsPage = ({ customers, transactions, accounts, onRefresh }) =
   </div>
 );
 
-const BillsPage = ({ transactions, vendors, items, accounts, onRefresh }) => (
-  <div>
-    <h2 className="text-2xl font-bold text-gray-900 mb-6">Enter Bills</h2>
-    <p className="text-gray-600">Bill entry functionality coming soon...</p>
-  </div>
-);
+// Bills Page Component (Full Implementation)
+const BillsPage = ({ transactions, vendors, items, accounts, onRefresh }) => {
+  const [showModal, setShowModal] = useState(false);
+  const [selectedBill, setSelectedBill] = useState(null);
+  const [formData, setFormData] = useState({
+    vendor_id: '',
+    date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    reference_number: '',
+    terms_id: '',
+    line_items: [{ item_id: '', description: '', quantity: 1, rate: 0, amount: 0, account_id: '' }],
+    tax_rate: 0,
+    memo: ''
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const submitData = {
+        ...formData,
+        transaction_type: 'Bill',
+        date: new Date(formData.date),
+        due_date: formData.due_date ? new Date(formData.due_date) : null,
+        tax_rate: parseFloat(formData.tax_rate),
+        line_items: formData.line_items.map(item => ({
+          ...item,
+          quantity: parseFloat(item.quantity),
+          rate: parseFloat(item.rate),
+          amount: parseFloat(item.amount)
+        }))
+      };
+
+      if (selectedBill) {
+        await axios.put(`${API}/transactions/${selectedBill.id}`, submitData);
+      } else {
+        await axios.post(`${API}/transactions`, submitData);
+      }
+      
+      setShowModal(false);
+      setSelectedBill(null);
+      resetForm();
+      onRefresh();
+    } catch (error) {
+      console.error('Error saving bill:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      vendor_id: '',
+      date: new Date().toISOString().split('T')[0],
+      due_date: '',
+      reference_number: '',
+      terms_id: '',
+      line_items: [{ item_id: '', description: '', quantity: 1, rate: 0, amount: 0, account_id: '' }],
+      tax_rate: 0,
+      memo: ''
+    });
+  };
+
+  const handleAddLineItem = () => {
+    setFormData({
+      ...formData,
+      line_items: [...formData.line_items, { item_id: '', description: '', quantity: 1, rate: 0, amount: 0, account_id: '' }]
+    });
+  };
+
+  const handleLineItemChange = (index, field, value) => {
+    const newLineItems = [...formData.line_items];
+    newLineItems[index][field] = value;
+    
+    if (field === 'quantity' || field === 'rate') {
+      newLineItems[index].amount = parseFloat(newLineItems[index].quantity) * parseFloat(newLineItems[index].rate);
+    }
+    
+    if (field === 'item_id' && value) {
+      const selectedItem = items.find(item => item.id === value);
+      if (selectedItem) {
+        newLineItems[index].description = selectedItem.description || selectedItem.name;
+        newLineItems[index].rate = selectedItem.cost || 0;
+        newLineItems[index].amount = parseFloat(newLineItems[index].quantity) * parseFloat(selectedItem.cost || 0);
+        newLineItems[index].account_id = selectedItem.expense_account_id || '';
+      }
+    }
+    
+    setFormData({ ...formData, line_items: newLineItems });
+  };
+
+  const removeLineItem = (index) => {
+    const newLineItems = formData.line_items.filter((_, i) => i !== index);
+    setFormData({ ...formData, line_items: newLineItems });
+  };
+
+  const handleEdit = (bill) => {
+    setSelectedBill(bill);
+    setFormData({
+      vendor_id: bill.vendor_id || '',
+      date: new Date(bill.date).toISOString().split('T')[0],
+      due_date: bill.due_date ? new Date(bill.due_date).toISOString().split('T')[0] : '',
+      reference_number: bill.reference_number || '',
+      terms_id: bill.terms_id || '',
+      line_items: bill.line_items.length > 0 ? bill.line_items : [{ item_id: '', description: '', quantity: 1, rate: 0, amount: 0, account_id: '' }],
+      tax_rate: bill.tax_rate || 0,
+      memo: bill.memo || ''
+    });
+    setShowModal(true);
+  };
+
+  const calculateSubtotal = () => {
+    return formData.line_items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  };
+
+  const calculateTax = () => {
+    const subtotal = calculateSubtotal();
+    return subtotal * (parseFloat(formData.tax_rate) / 100);
+  };
+
+  const calculateTotal = () => {
+    return calculateSubtotal() + calculateTax();
+  };
+
+  const expenseAccounts = accounts.filter(acc => acc.account_type === 'Expense');
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Enter Bills</h2>
+        <button
+          onClick={() => setShowModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          + Enter Bill
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill #</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {transactions.map((bill) => {
+              const vendor = vendors.find(v => v.id === bill.vendor_id);
+              return (
+                <tr key={bill.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {bill.transaction_number}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {vendor?.name || 'Unknown Vendor'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {new Date(bill.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {bill.due_date ? new Date(bill.due_date).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    ${bill.total.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      bill.status === 'Paid' ? 'bg-green-100 text-green-800' :
+                      bill.status === 'Open' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {bill.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <button
+                      onClick={() => handleEdit(bill)}
+                      className="text-blue-600 hover:text-blue-800 mr-3"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Bill Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {selectedBill ? 'Edit Bill' : 'Enter New Bill'}
+            </h3>
+            
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Header Information */}
+              <div className="grid grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Vendor *</label>
+                  <select
+                    value={formData.vendor_id}
+                    onChange={(e) => setFormData({...formData, vendor_id: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">Select Vendor</option>
+                    {vendors.map(vendor => (
+                      <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bill Date *</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({...formData, date: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                  <input
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) => setFormData({...formData, due_date: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number</label>
+                <input
+                  type="text"
+                  value={formData.reference_number}
+                  onChange={(e) => setFormData({...formData, reference_number: e.target.value})}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Vendor invoice number"
+                />
+              </div>
+
+              {/* Line Items */}
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <label className="block text-sm font-medium text-gray-700">Expenses</label>
+                  <button
+                    type="button"
+                    onClick={handleAddLineItem}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    + Add Line
+                  </button>
+                </div>
+                
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Item</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Description</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Cost</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Amount</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Account</th>
+                        <th className="px-3 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.line_items.map((item, index) => (
+                        <tr key={index} className="border-t border-gray-200">
+                          <td className="px-3 py-2">
+                            <select
+                              value={item.item_id}
+                              onChange={(e) => handleLineItemChange(index, 'item_id', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            >
+                              <option value="">Select Item</option>
+                              {items.map(item => (
+                                <option key={item.id} value={item.id}>{item.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => handleLineItemChange(index, 'description', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.quantity}
+                              onChange={(e) => handleLineItemChange(index, 'quantity', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.rate}
+                              onChange={(e) => handleLineItemChange(index, 'rate', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.amount}
+                              readOnly
+                              className="w-full p-2 border border-gray-300 rounded text-sm bg-gray-50"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <select
+                              value={item.account_id}
+                              onChange={(e) => handleLineItemChange(index, 'account_id', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            >
+                              <option value="">Select Account</option>
+                              {expenseAccounts.map(account => (
+                                <option key={account.id} value={account.id}>{account.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            {formData.line_items.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeLineItem(index)}
+                                className="text-red-600 hover:text-red-800 text-sm"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Totals */}
+              <div className="flex justify-end">
+                <div className="w-64 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Subtotal:</span>
+                    <span className="text-sm font-medium">${calculateSubtotal().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Tax Rate:</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.tax_rate}
+                      onChange={(e) => setFormData({...formData, tax_rate: e.target.value})}
+                      className="w-16 p-1 border border-gray-300 rounded text-sm text-right"
+                    />
+                    <span className="text-sm text-gray-600">%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Tax Amount:</span>
+                    <span className="text-sm font-medium">${calculateTax().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="text-lg font-medium">Total:</span>
+                    <span className="text-lg font-bold">${calculateTotal().toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Memo</label>
+                <textarea
+                  value={formData.memo}
+                  onChange={(e) => setFormData({...formData, memo: e.target.value})}
+                  rows={2}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false);
+                    setSelectedBill(null);
+                    resetForm();
+                  }}
+                  className="px-6 py-3 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  {selectedBill ? 'Update Bill' : 'Save Bill'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const PayBillsPage = ({ vendors, transactions, accounts, onRefresh }) => (
   <div>
