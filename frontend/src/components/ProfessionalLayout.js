@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import GlobalSearch from './GlobalSearch';
 
 const ProfessionalLayout = ({ children, currentPage, onPageChange, companyName }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
