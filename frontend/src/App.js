@@ -1239,12 +1239,358 @@ const EmployeesPage = ({ employees, onRefresh }) => (
   </div>
 );
 
-const ItemsPage = ({ items, accounts, vendors, onRefresh }) => (
-  <div>
-    <h2 className="text-2xl font-bold text-gray-900 mb-6">Items & Services</h2>
-    <p className="text-gray-600">Inventory and services management functionality coming soon...</p>
-  </div>
-);
+// Items & Services Page Component (Full Implementation)
+const ItemsPage = ({ items, accounts, vendors, onRefresh }) => {
+  const [showModal, setShowModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    item_number: '',
+    item_type: 'Service',
+    description: '',
+    sales_price: '',
+    cost: '',
+    income_account_id: '',
+    expense_account_id: '',
+    inventory_account_id: '',
+    qty_on_hand: 0,
+    reorder_point: '',
+    preferred_vendor_id: '',
+    tax_code: ''
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const submitData = {
+        ...formData,
+        sales_price: formData.sales_price ? parseFloat(formData.sales_price) : null,
+        cost: formData.cost ? parseFloat(formData.cost) : null,
+        qty_on_hand: parseFloat(formData.qty_on_hand),
+        reorder_point: formData.reorder_point ? parseFloat(formData.reorder_point) : null
+      };
+
+      if (selectedItem) {
+        await axios.put(`${API}/items/${selectedItem.id}`, submitData);
+      } else {
+        await axios.post(`${API}/items`, submitData);
+      }
+      
+      setShowModal(false);
+      setSelectedItem(null);
+      resetForm();
+      onRefresh();
+    } catch (error) {
+      console.error('Error saving item:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      item_number: '',
+      item_type: 'Service',
+      description: '',
+      sales_price: '',
+      cost: '',
+      income_account_id: '',
+      expense_account_id: '',
+      inventory_account_id: '',
+      qty_on_hand: 0,
+      reorder_point: '',
+      preferred_vendor_id: '',
+      tax_code: ''
+    });
+  };
+
+  const handleEdit = (item) => {
+    setSelectedItem(item);
+    setFormData({
+      name: item.name,
+      item_number: item.item_number || '',
+      item_type: item.item_type,
+      description: item.description || '',
+      sales_price: item.sales_price || '',
+      cost: item.cost || '',
+      income_account_id: item.income_account_id || '',
+      expense_account_id: item.expense_account_id || '',
+      inventory_account_id: item.inventory_account_id || '',
+      qty_on_hand: item.qty_on_hand,
+      reorder_point: item.reorder_point || '',
+      preferred_vendor_id: item.preferred_vendor_id || '',
+      tax_code: item.tax_code || ''
+    });
+    setShowModal(true);
+  };
+
+  const incomeAccounts = accounts.filter(acc => acc.account_type === 'Income');
+  const expenseAccounts = accounts.filter(acc => acc.account_type === 'Expense');
+  const assetAccounts = accounts.filter(acc => acc.account_type === 'Asset');
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Items & Services</h2>
+        <button
+          onClick={() => setShowModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          + New Item
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name/Number</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty on Hand</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reorder Point</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {items.map((item) => (
+              <tr key={item.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                    {item.item_number && <div className="text-sm text-gray-500">#{item.item_number}</div>}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    item.item_type === 'Inventory' ? 'bg-blue-100 text-blue-800' :
+                    item.item_type === 'Service' ? 'bg-green-100 text-green-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {item.item_type}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {item.sales_price ? `$${item.sales_price.toLocaleString()}` : '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {item.cost ? `$${item.cost.toLocaleString()}` : '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {item.item_type === 'Inventory' ? item.qty_on_hand : '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {item.reorder_point || '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <button
+                    onClick={() => handleEdit(item)}
+                    className="text-blue-600 hover:text-blue-800 mr-3"
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Item Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {selectedItem ? 'Edit Item' : 'Create New Item'}
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Item Name *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Item Number</label>
+                  <input
+                    type="text"
+                    value={formData.item_number}
+                    onChange={(e) => setFormData({...formData, item_number: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Item Type *</label>
+                  <select
+                    value={formData.item_type}
+                    onChange={(e) => setFormData({...formData, item_type: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="Service">Service</option>
+                    <option value="Inventory">Inventory</option>
+                    <option value="Non-Inventory">Non-Inventory</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tax Code</label>
+                  <input
+                    type="text"
+                    value={formData.tax_code}
+                    onChange={(e) => setFormData({...formData, tax_code: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  rows={3}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sales Price</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.sales_price}
+                    onChange={(e) => setFormData({...formData, sales_price: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cost</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.cost}
+                    onChange={(e) => setFormData({...formData, cost: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Income Account</label>
+                  <select
+                    value={formData.income_account_id}
+                    onChange={(e) => setFormData({...formData, income_account_id: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select Account</option>
+                    {incomeAccounts.map(account => (
+                      <option key={account.id} value={account.id}>{account.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Expense Account</label>
+                  <select
+                    value={formData.expense_account_id}
+                    onChange={(e) => setFormData({...formData, expense_account_id: e.target.value})}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select Account</option>
+                    {expenseAccounts.map(account => (
+                      <option key={account.id} value={account.id}>{account.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {formData.item_type === 'Inventory' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Inventory Account</label>
+                    <select
+                      value={formData.inventory_account_id}
+                      onChange={(e) => setFormData({...formData, inventory_account_id: e.target.value})}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Account</option>
+                      {assetAccounts.map(account => (
+                        <option key={account.id} value={account.id}>{account.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {formData.item_type === 'Inventory' && (
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Quantity on Hand</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.qty_on_hand}
+                      onChange={(e) => setFormData({...formData, qty_on_hand: e.target.value})}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Reorder Point</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.reorder_point}
+                      onChange={(e) => setFormData({...formData, reorder_point: e.target.value})}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Vendor</label>
+                    <select
+                      value={formData.preferred_vendor_id}
+                      onChange={(e) => setFormData({...formData, preferred_vendor_id: e.target.value})}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Vendor</option>
+                      {vendors.map(vendor => (
+                        <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false);
+                    setSelectedItem(null);
+                    resetForm();
+                  }}
+                  className="px-6 py-3 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  {selectedItem ? 'Update Item' : 'Create Item'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const InvoicesPage = ({ transactions, customers, items, accounts, classes, locations, terms, onRefresh }) => (
   <div>
