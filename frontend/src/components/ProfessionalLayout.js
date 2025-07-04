@@ -140,22 +140,6 @@ const ProfessionalLayout = ({ children, currentPage, onPageChange, companyName }
             >
               🔍
             </button>
-            {showGlobalSearch && (
-              <div className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-lg border border-gray-200 w-80 z-50">
-                <div className="p-4">
-                  <input
-                    type="text"
-                    placeholder="Search transactions, customers, vendors..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <div className="mt-2 text-xs text-gray-500">
-                    Press Enter to search or Escape to close
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
           
           <div className="flex items-center space-x-2">
