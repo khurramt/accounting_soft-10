@@ -548,19 +548,19 @@ function App() {
 
         {/* Main Content */}
         <main className="flex-1 p-6">
-          {currentPage === 'dashboard' && <Dashboard accounts={accounts} transactions={transactions} customers={customers} vendors={vendors} />}
+          {currentPage === 'dashboard' && <EnhancedDashboard accounts={accounts} transactions={transactions} customers={customers} vendors={vendors} />}
           {currentPage === 'accounts' && <AccountsPage accounts={accounts} onRefresh={fetchAccounts} />}
-          {currentPage === 'customers' && <CustomersPage customers={customers} terms={terms} onRefresh={fetchCustomers} />}
+          {currentPage === 'customers' && <CustomerCenter customers={customers} terms={terms} onRefresh={fetchCustomers} />}
           {currentPage === 'vendors' && <VendorsPage vendors={vendors} terms={terms} onRefresh={fetchVendors} />}
           {currentPage === 'employees' && <EmployeesPage employees={employees} onRefresh={fetchEmployees} />}
           {currentPage === 'items' && <ItemsPage items={items} accounts={accounts} vendors={vendors} onRefresh={fetchItems} />}
-          {currentPage === 'invoices' && <InvoicesPage transactions={transactions.filter(t => t.transaction_type === 'Invoice')} customers={customers} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
-          {currentPage === 'sales-receipts' && <SalesReceiptsPage transactions={transactions.filter(t => t.transaction_type === 'Sales Receipt')} customers={customers} items={items} accounts={accounts} onRefresh={fetchTransactions} />}
-          {currentPage === 'estimates' && <EstimatesPage transactions={transactions.filter(t => t.transaction_type === 'Estimate')} customers={customers} items={items} accounts={accounts} onRefresh={fetchTransactions} />}
+          {currentPage === 'invoices' && <TransactionFormPage transactionType="Invoice" customers={customers} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
+          {currentPage === 'sales-receipts' && <TransactionFormPage transactionType="Sales Receipt" customers={customers} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
+          {currentPage === 'estimates' && <TransactionFormPage transactionType="Estimate" customers={customers} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
           {currentPage === 'receive-payments' && <ReceivePaymentsPage customers={customers} transactions={transactions} accounts={accounts} onRefresh={fetchTransactions} />}
-          {currentPage === 'bills' && <BillsPage transactions={transactions.filter(t => t.transaction_type === 'Bill')} vendors={vendors} items={items} accounts={accounts} onRefresh={fetchTransactions} />}
+          {currentPage === 'bills' && <TransactionFormPage transactionType="Bill" vendors={vendors} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
           {currentPage === 'pay-bills' && <PayBillsPage vendors={vendors} transactions={transactions} accounts={accounts} onRefresh={fetchTransactions} />}
-          {currentPage === 'purchase-orders' && <PurchaseOrdersPage transactions={transactions.filter(t => t.transaction_type === 'Purchase Order')} vendors={vendors} items={items} onRefresh={fetchTransactions} />}
+          {currentPage === 'purchase-orders' && <TransactionFormPage transactionType="Purchase Order" vendors={vendors} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
           {currentPage === 'checks' && <ChecksPage accounts={accounts} vendors={vendors} items={items} onRefresh={fetchTransactions} />}
           {currentPage === 'transfers' && <TransfersPage accounts={accounts} onRefresh={fetchAccounts} />}
           {currentPage === 'reconcile' && <ReconcilePage accounts={accounts} transactions={transactions} />}
