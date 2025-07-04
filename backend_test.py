@@ -435,6 +435,419 @@ class QBCloneBackendTest(unittest.TestCase):
         # 4. The accounting equation holds true
         
         logger.info("Complete Accounting Workflow tests passed")
+        
+    def test_07_company_management(self):
+        """Test company management endpoints"""
+        logger.info("Testing Company Management...")
+        
+        # Test company creation
+        company_data = {
+            "name": "Test Company LLC",
+            "legal_name": "Test Company Legal Name LLC",
+            "address": "123 Test Street",
+            "city": "Test City",
+            "state": "TS",
+            "zip_code": "12345",
+            "country": "United States",
+            "phone": "555-123-4567",
+            "email": "info@testcompany.com",
+            "industry": "technology"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/company", json=company_data)
+        self.assertEqual(response.status_code, 200)
+        company = response.json()
+        logger.info(f"Created company: {company['name']} with ID: {company['id']}")
+        
+        # Test company retrieval
+        response = requests.get(f"{BACKEND_URL}/company")
+        self.assertEqual(response.status_code, 200)
+        retrieved_company = response.json()
+        self.assertEqual(retrieved_company["name"], company_data["name"])
+        logger.info(f"Retrieved company: {retrieved_company['name']}")
+        
+        # Test company update
+        update_data = company_data.copy()
+        update_data["name"] = "Updated Test Company LLC"
+        
+        response = requests.put(f"{BACKEND_URL}/company/{company['id']}", json=update_data)
+        self.assertEqual(response.status_code, 200)
+        updated_company = response.json()
+        self.assertEqual(updated_company["name"], update_data["name"])
+        logger.info(f"Updated company to: {updated_company['name']}")
+        
+        logger.info("Company Management tests passed")
+    
+    def test_08_employee_management(self):
+        """Test employee management endpoints"""
+        logger.info("Testing Employee Management...")
+        
+        # Create employees
+        employee_data = [
+            {
+                "name": "Alice Johnson",
+                "status": "Active",
+                "title": "Software Developer",
+                "ssn": "123-45-6789",
+                "employee_id": "EMP001",
+                "email": "alice@example.com",
+                "phone": "555-111-2222",
+                "address": "123 Tech Lane",
+                "city": "Techville",
+                "state": "CA",
+                "zip_code": "90210",
+                "hire_date": datetime.utcnow().isoformat(),
+                "pay_type": "Salary",
+                "pay_rate": 85000.0,
+                "pay_schedule": "Bi-weekly",
+                "vacation_balance": 80.0,
+                "sick_balance": 40.0
+            },
+            {
+                "name": "Bob Smith",
+                "status": "Active",
+                "title": "Sales Manager",
+                "employee_id": "EMP002",
+                "email": "bob@example.com",
+                "phone": "555-333-4444",
+                "hire_date": datetime.utcnow().isoformat(),
+                "pay_type": "Commission",
+                "pay_rate": 50000.0
+            }
+        ]
+        
+        employees = {}
+        for employee in employee_data:
+            response = requests.post(f"{BACKEND_URL}/employees", json=employee)
+            self.assertEqual(response.status_code, 200)
+            employee_obj = response.json()
+            employees[employee["name"]] = employee_obj
+            logger.info(f"Created employee: {employee['name']} with ID: {employee_obj['id']}")
+        
+        # Verify employee listing
+        response = requests.get(f"{BACKEND_URL}/employees")
+        self.assertEqual(response.status_code, 200)
+        employees_list = response.json()
+        self.assertGreaterEqual(len(employees_list), len(employee_data))
+        logger.info(f"Retrieved {len(employees_list)} employees")
+        
+        # Verify individual employee retrieval
+        for name, employee in employees.items():
+            response = requests.get(f"{BACKEND_URL}/employees/{employee['id']}")
+            self.assertEqual(response.status_code, 200)
+            retrieved_employee = response.json()
+            self.assertEqual(retrieved_employee["name"], name)
+            logger.info(f"Retrieved employee: {name}")
+        
+        # Test employee update
+        update_data = {
+            "name": "Alice Johnson-Updated",
+            "title": "Senior Software Developer",
+            "pay_rate": 95000.0,
+            "status": "Active"
+        }
+        
+        response = requests.put(f"{BACKEND_URL}/employees/{employees['Alice Johnson']['id']}", json=update_data)
+        self.assertEqual(response.status_code, 200)
+        updated_employee = response.json()
+        self.assertEqual(updated_employee["name"], update_data["name"])
+        self.assertEqual(updated_employee["title"], update_data["title"])
+        self.assertEqual(updated_employee["pay_rate"], update_data["pay_rate"])
+        logger.info(f"Updated employee: {updated_employee['name']}")
+        
+        logger.info("Employee Management tests passed")
+    
+    def test_09_item_management(self):
+        """Test item management endpoints"""
+        logger.info("Testing Item Management...")
+        
+        # Create items
+        item_data = [
+            {
+                "name": "Laptop Computer",
+                "item_number": "IT001",
+                "item_type": "Inventory",
+                "description": "High-performance laptop",
+                "sales_price": 1299.99,
+                "cost": 899.99,
+                "income_account_id": self.accounts["Sales Revenue"]["id"],
+                "expense_account_id": self.accounts["Office Supplies"]["id"],
+                "inventory_account_id": self.accounts["Inventory"]["id"],
+                "qty_on_hand": 25.0,
+                "reorder_point": 5.0
+            },
+            {
+                "name": "Consulting Services",
+                "item_number": "SVC001",
+                "item_type": "Service",
+                "description": "Professional consulting services",
+                "sales_price": 150.0,
+                "income_account_id": self.accounts["Service Revenue"]["id"]
+            }
+        ]
+        
+        items = {}
+        for item in item_data:
+            response = requests.post(f"{BACKEND_URL}/items", json=item)
+            self.assertEqual(response.status_code, 200)
+            item_obj = response.json()
+            items[item["name"]] = item_obj
+            logger.info(f"Created item: {item['name']} with ID: {item_obj['id']}")
+        
+        # Verify item listing
+        response = requests.get(f"{BACKEND_URL}/items")
+        self.assertEqual(response.status_code, 200)
+        items_list = response.json()
+        self.assertGreaterEqual(len(items_list), len(item_data))
+        logger.info(f"Retrieved {len(items_list)} items")
+        
+        # Verify individual item retrieval
+        for name, item in items.items():
+            response = requests.get(f"{BACKEND_URL}/items/{item['id']}")
+            self.assertEqual(response.status_code, 200)
+            retrieved_item = response.json()
+            self.assertEqual(retrieved_item["name"], name)
+            logger.info(f"Retrieved item: {name}")
+        
+        # Test item update
+        update_data = {
+            "name": "Laptop Computer Pro",
+            "description": "High-performance professional laptop",
+            "sales_price": 1499.99,
+            "cost": 999.99,
+            "qty_on_hand": 30.0,
+            "item_type": "Inventory"
+        }
+        
+        response = requests.put(f"{BACKEND_URL}/items/{items['Laptop Computer']['id']}", json=update_data)
+        self.assertEqual(response.status_code, 200)
+        updated_item = response.json()
+        self.assertEqual(updated_item["name"], update_data["name"])
+        self.assertEqual(updated_item["sales_price"], update_data["sales_price"])
+        logger.info(f"Updated item: {updated_item['name']}")
+        
+        logger.info("Item Management tests passed")
+    
+    def test_10_advanced_transaction_types(self):
+        """Test advanced transaction types"""
+        logger.info("Testing Advanced Transaction Types...")
+        
+        # Create a sales receipt transaction
+        sales_receipt_data = {
+            "transaction_type": "Sales Receipt",
+            "customer_id": self.customers["Jane Doe"]["id"],
+            "date": datetime.utcnow().isoformat(),
+            "line_items": [
+                {
+                    "description": "Laptop Sale",
+                    "quantity": 1,
+                    "rate": 1499.99,
+                    "amount": 1499.99,
+                    "account_id": self.accounts["Sales Revenue"]["id"]
+                }
+            ],
+            "tax_rate": 8.0,
+            "payment_method": "Credit Card",
+            "deposit_to_account_id": self.accounts["Checking Account"]["id"],
+            "memo": "Walk-in sale"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/transactions", json=sales_receipt_data)
+        self.assertEqual(response.status_code, 200)
+        sales_receipt = response.json()
+        self.transactions["sales_receipt"] = sales_receipt
+        logger.info(f"Created sales receipt transaction: {sales_receipt['transaction_number']}")
+        
+        # Create a check transaction
+        check_data = {
+            "transaction_type": "Check",
+            "vendor_id": self.vendors["Global Services"]["id"],
+            "date": datetime.utcnow().isoformat(),
+            "line_items": [
+                {
+                    "description": "Consulting Fee",
+                    "quantity": 1,
+                    "rate": 2500.0,
+                    "amount": 2500.0,
+                    "account_id": self.accounts["Office Supplies"]["id"]
+                }
+            ],
+            "payment_method": "Check",
+            "deposit_to_account_id": self.accounts["Checking Account"]["id"],
+            "memo": "Monthly consulting fee"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/transactions", json=check_data)
+        self.assertEqual(response.status_code, 200)
+        check = response.json()
+        self.transactions["check"] = check
+        logger.info(f"Created check transaction: {check['transaction_number']}")
+        
+        # Test fund transfer
+        transfer_data = {
+            "from_account_id": self.accounts["Checking Account"]["id"],
+            "to_account_id": self.accounts["Undeposited Funds"]["id"] if "Undeposited Funds" in self.accounts else self.accounts["Checking Account"]["id"],
+            "amount": 1000.0,
+            "date": datetime.utcnow().isoformat(),
+            "memo": "Test fund transfer"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/transfers", params=transfer_data)
+        self.assertEqual(response.status_code, 200)
+        transfer = response.json()
+        logger.info(f"Created fund transfer: {transfer['transfer_id']}")
+        
+        # Verify journal entries for these transactions
+        response = requests.get(f"{BACKEND_URL}/journal-entries")
+        self.assertEqual(response.status_code, 200)
+        journal_entries = response.json()
+        
+        # Find entries related to our new transactions
+        sales_receipt_entries = [entry for entry in journal_entries if entry.get("transaction_id") == sales_receipt["id"]]
+        check_entries = [entry for entry in journal_entries if entry.get("transaction_id") == check["id"]]
+        transfer_entries = [entry for entry in journal_entries if entry.get("transaction_id") == transfer["transfer_id"]]
+        
+        # Verify proper double-entry bookkeeping
+        self.assertGreaterEqual(len(sales_receipt_entries), 2)  # At least 2 entries for sales receipt
+        self.assertGreaterEqual(len(check_entries), 2)  # At least 2 entries for check
+        self.assertEqual(len(transfer_entries), 2)  # Exactly 2 entries for transfer
+        
+        logger.info("Advanced Transaction Types tests passed")
+    
+    def test_11_enhanced_reporting(self):
+        """Test enhanced reporting functionality"""
+        logger.info("Testing Enhanced Reporting...")
+        
+        # Test A/R Aging Report
+        response = requests.get(f"{BACKEND_URL}/reports/ar-aging")
+        self.assertEqual(response.status_code, 200)
+        ar_aging = response.json()
+        
+        self.assertIn("ar_aging", ar_aging)
+        logger.info(f"A/R Aging Report retrieved with {len(ar_aging['ar_aging'])} customers")
+        
+        # Test A/P Aging Report
+        response = requests.get(f"{BACKEND_URL}/reports/ap-aging")
+        self.assertEqual(response.status_code, 200)
+        ap_aging = response.json()
+        
+        self.assertIn("ap_aging", ap_aging)
+        logger.info(f"A/P Aging Report retrieved with {len(ap_aging['ap_aging'])} vendors")
+        
+        logger.info("Enhanced Reporting tests passed")
+    
+    def test_12_additional_entities(self):
+        """Test additional entity endpoints"""
+        logger.info("Testing Additional Entities...")
+        
+        # Test Class creation and retrieval
+        class_data = {"name": "Marketing Department"}
+        response = requests.post(f"{BACKEND_URL}/classes", json=class_data)
+        self.assertEqual(response.status_code, 200)
+        class_obj = response.json()
+        logger.info(f"Created class: {class_obj['name']} with ID: {class_obj['id']}")
+        
+        response = requests.get(f"{BACKEND_URL}/classes")
+        self.assertEqual(response.status_code, 200)
+        classes = response.json()
+        self.assertGreaterEqual(len(classes), 1)
+        logger.info(f"Retrieved {len(classes)} classes")
+        
+        # Test Location creation and retrieval
+        location_data = {"name": "Main Office"}
+        response = requests.post(f"{BACKEND_URL}/locations", json=location_data)
+        self.assertEqual(response.status_code, 200)
+        location_obj = response.json()
+        logger.info(f"Created location: {location_obj['name']} with ID: {location_obj['id']}")
+        
+        response = requests.get(f"{BACKEND_URL}/locations")
+        self.assertEqual(response.status_code, 200)
+        locations = response.json()
+        self.assertGreaterEqual(len(locations), 1)
+        logger.info(f"Retrieved {len(locations)} locations")
+        
+        # Test Terms creation and retrieval
+        terms_data = {
+            "name": "Net 30",
+            "days_due": 30,
+            "discount_days": 10,
+            "discount_percent": 2.0
+        }
+        response = requests.post(f"{BACKEND_URL}/terms", json=terms_data)
+        self.assertEqual(response.status_code, 200)
+        terms_obj = response.json()
+        logger.info(f"Created terms: {terms_obj['name']} with ID: {terms_obj['id']}")
+        
+        response = requests.get(f"{BACKEND_URL}/terms")
+        self.assertEqual(response.status_code, 200)
+        terms_list = response.json()
+        self.assertGreaterEqual(len(terms_list), 1)
+        logger.info(f"Retrieved {len(terms_list)} terms")
+        
+        # Test Price Level creation and retrieval
+        price_level_data = {
+            "name": "Wholesale",
+            "adjustment_type": "Percentage",
+            "adjustment_value": -15.0
+        }
+        response = requests.post(f"{BACKEND_URL}/price-levels", json=price_level_data)
+        self.assertEqual(response.status_code, 200)
+        price_level_obj = response.json()
+        logger.info(f"Created price level: {price_level_obj['name']} with ID: {price_level_obj['id']}")
+        
+        response = requests.get(f"{BACKEND_URL}/price-levels")
+        self.assertEqual(response.status_code, 200)
+        price_levels = response.json()
+        self.assertGreaterEqual(len(price_levels), 1)
+        logger.info(f"Retrieved {len(price_levels)} price levels")
+        
+        # Test ToDo creation and retrieval
+        todo_data = {
+            "title": "Complete quarterly tax filing",
+            "description": "Prepare and submit Q2 tax documents",
+            "due_date": (datetime.utcnow() + timedelta(days=15)).isoformat(),
+            "priority": "High"
+        }
+        response = requests.post(f"{BACKEND_URL}/todos", json=todo_data)
+        self.assertEqual(response.status_code, 200)
+        todo_obj = response.json()
+        logger.info(f"Created todo: {todo_obj['title']} with ID: {todo_obj['id']}")
+        
+        response = requests.get(f"{BACKEND_URL}/todos")
+        self.assertEqual(response.status_code, 200)
+        todos = response.json()
+        self.assertGreaterEqual(len(todos), 1)
+        logger.info(f"Retrieved {len(todos)} todos")
+        
+        # Test Memorized Transaction creation and retrieval
+        memorized_transaction_data = {
+            "name": "Monthly Rent",
+            "transaction_template": {
+                "transaction_type": "Check",
+                "vendor_id": self.vendors["Acme Supplies"]["id"],
+                "line_items": [
+                    {
+                        "description": "Office Rent",
+                        "amount": 2000.0,
+                        "account_id": self.accounts["Office Supplies"]["id"]
+                    }
+                ]
+            },
+            "frequency": "Monthly",
+            "next_date": (datetime.utcnow() + timedelta(days=30)).isoformat()
+        }
+        response = requests.post(f"{BACKEND_URL}/memorized-transactions", json=memorized_transaction_data)
+        self.assertEqual(response.status_code, 200)
+        memorized_transaction_obj = response.json()
+        logger.info(f"Created memorized transaction: {memorized_transaction_obj['name']} with ID: {memorized_transaction_obj['id']}")
+        
+        response = requests.get(f"{BACKEND_URL}/memorized-transactions")
+        self.assertEqual(response.status_code, 200)
+        memorized_transactions = response.json()
+        self.assertGreaterEqual(len(memorized_transactions), 1)
+        logger.info(f"Retrieved {len(memorized_transactions)} memorized transactions")
+        
+        logger.info("Additional Entities tests passed")
         logger.info("All tests completed successfully!")
 
 
