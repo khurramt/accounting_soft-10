@@ -103,6 +103,46 @@ class PayType(str, Enum):
     SALARY = "Salary"
     COMMISSION = "Commission"
 
+# Phase 5: Advanced Business Logic Enums
+class CostingMethod(str, Enum):
+    FIFO = "FIFO"
+    LIFO = "LIFO"
+    AVERAGE = "Average"
+
+class InventoryAdjustmentType(str, Enum):
+    SHRINKAGE = "Shrinkage"
+    DAMAGED = "Damaged"
+    CORRECTION = "Correction"
+    RECOUNT = "Recount"
+    OBSOLETE = "Obsolete"
+    TRANSFER = "Transfer"
+
+class PayrollStatus(str, Enum):
+    PENDING = "Pending"
+    PROCESSED = "Processed"
+    PAID = "Paid"
+    CANCELLED = "Cancelled"
+
+class TimeEntryStatus(str, Enum):
+    DRAFT = "Draft"
+    SUBMITTED = "Submitted"
+    APPROVED = "Approved"
+    REJECTED = "Rejected"
+
+class PayPeriodType(str, Enum):
+    WEEKLY = "Weekly"
+    BIWEEKLY = "Bi-weekly"
+    SEMIMONTHLY = "Semi-monthly"
+    MONTHLY = "Monthly"
+
+class TaxType(str, Enum):
+    FEDERAL_INCOME = "Federal Income Tax"
+    STATE_INCOME = "State Income Tax"
+    SOCIAL_SECURITY = "Social Security"
+    MEDICARE = "Medicare"
+    UNEMPLOYMENT = "Unemployment"
+    DISABILITY = "Disability"
+
 # Data Models
 class Company(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
