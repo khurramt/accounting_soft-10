@@ -1189,7 +1189,18 @@ async def get_undeposited_payments():
         "status": {"$ne": "Deposited"}
     }).to_list(1000)
     
-    return payments
+    # Convert to proper Transaction objects for serialization
+    result = []
+    for payment in payments:
+        # Remove MongoDB ObjectId field
+        if "_id" in payment:
+            del payment["_id"]
+        
+        # Convert to Transaction object to ensure proper serialization
+        transaction_obj = Transaction(**payment)
+        result.append(transaction_obj.dict())
+    
+    return result
 
 # Reports endpoints
 @api_router.get("/reports/trial-balance")
