@@ -499,8 +499,7 @@ metadata:
 test_plan:
   current_focus:
     - "Authentication API"
-  stuck_tasks:
-    - "Authentication API"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
