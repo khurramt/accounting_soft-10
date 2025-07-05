@@ -748,7 +748,7 @@ class QBClonePhase4BackendTest(unittest.TestCase):
             "password": "ReportPassword123!"
         }
         
-        response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+        response = requests.post(f"{BACKEND_URL}/auth/login", params=login_data)
         self.assertEqual(response.status_code, 200)
         login_result = response.json()
         token = login_result["token"]
