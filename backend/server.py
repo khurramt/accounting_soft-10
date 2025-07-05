@@ -726,6 +726,10 @@ class AuditLogCreate(BaseModel):
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 # Security configuration
 security = HTTPBearer()
 
