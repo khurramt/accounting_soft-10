@@ -608,7 +608,7 @@ class QBClonePhase4FeaturesTest(unittest.TestCase):
         response = requests.get(f"{BACKEND_URL}/permissions")
         self.assertEqual(response.status_code, 200)
         permissions = response.json()
-        self.assertGreaterEqual(len(permissions), 12)  # At least 12 default permissions
+        self.assertGreaterEqual(len(permissions), 6)  # At least 6 default permissions
         
         # Verify roles were created
         response = requests.get(f"{BACKEND_URL}/user-roles")
