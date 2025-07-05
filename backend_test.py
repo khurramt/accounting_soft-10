@@ -848,6 +848,322 @@ class QBCloneBackendTest(unittest.TestCase):
         logger.info(f"Retrieved {len(memorized_transactions)} memorized transactions")
         
         logger.info("Additional Entities tests passed")
+    
+    def test_13_manual_journal_entry(self):
+        """Test manual journal entry functionality"""
+        logger.info("Testing Manual Journal Entry...")
+        
+        # Test with balanced entries (debits = credits)
+        balanced_entry = {
+            "date": datetime.utcnow().isoformat(),
+            "reference": "JE-TEST-001",
+            "memo": "Test balanced journal entry",
+            "entries": [
+                {
+                    "account_id": self.accounts["Office Supplies"]["id"],
+                    "debit": 500.0,
+                    "credit": 0.0,
+                    "description": "Office supplies purchase"
+                },
+                {
+                    "account_id": self.accounts["Checking Account"]["id"],
+                    "debit": 0.0,
+                    "credit": 500.0,
+                    "description": "Payment for office supplies"
+                }
+            ]
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/manual-journal-entry", json=balanced_entry)
+        self.assertEqual(response.status_code, 200)
+        journal_result = response.json()
+        self.assertEqual(journal_result["entries_created"], 2)
+        self.assertEqual(journal_result["total_debits"], 500.0)
+        self.assertEqual(journal_result["total_credits"], 500.0)
+        logger.info(f"Created balanced manual journal entry: {journal_result['transaction_number']}")
+        
+        # Test with unbalanced entries (should return 400 error)
+        unbalanced_entry = {
+            "date": datetime.utcnow().isoformat(),
+            "reference": "JE-TEST-002",
+            "memo": "Test unbalanced journal entry",
+            "entries": [
+                {
+                    "account_id": self.accounts["Office Supplies"]["id"],
+                    "debit": 750.0,
+                    "credit": 0.0,
+                    "description": "Office supplies purchase"
+                },
+                {
+                    "account_id": self.accounts["Checking Account"]["id"],
+                    "debit": 0.0,
+                    "credit": 500.0,
+                    "description": "Payment for office supplies"
+                }
+            ]
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/manual-journal-entry", json=unbalanced_entry)
+        self.assertEqual(response.status_code, 400)
+        error_result = response.json()
+        self.assertIn("Journal entry must be balanced", error_result["detail"])
+        logger.info("Correctly rejected unbalanced journal entry")
+        
+        # Test with single entry (should return 400 error)
+        single_entry = {
+            "date": datetime.utcnow().isoformat(),
+            "reference": "JE-TEST-003",
+            "memo": "Test single entry journal",
+            "entries": [
+                {
+                    "account_id": self.accounts["Office Supplies"]["id"],
+                    "debit": 500.0,
+                    "credit": 0.0,
+                    "description": "Office supplies purchase"
+                }
+            ]
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/manual-journal-entry", json=single_entry)
+        self.assertEqual(response.status_code, 400)
+        error_result = response.json()
+        self.assertIn("Journal entry must have at least 2 entries", error_result["detail"])
+        logger.info("Correctly rejected journal entry with only one entry")
+        
+        # Verify journal entries were created and account balances updated
+        response = requests.get(f"{BACKEND_URL}/journal-entries")
+        self.assertEqual(response.status_code, 200)
+        journal_entries = response.json()
+        
+        # Find entries related to our manual journal entry
+        manual_entries = [entry for entry in journal_entries if entry.get("transaction_id") == journal_result["transaction_id"]]
+        self.assertEqual(len(manual_entries), 2)
+        
+        # Verify account balances were updated
+        response = requests.get(f"{BACKEND_URL}/accounts/{self.accounts['Office Supplies']['id']}")
+        office_account = response.json()
+        self.assertGreaterEqual(office_account["balance"], 500.0)  # Should include our manual entry
+        
+        logger.info("Manual Journal Entry tests passed")
+    
+    def test_14_enhanced_transfer_functionality(self):
+        """Test enhanced transfer functionality"""
+        logger.info("Testing Enhanced Transfer Functionality...")
+        
+        # Test valid transfer
+        valid_transfer = {
+            "from_account_id": self.accounts["Checking Account"]["id"],
+            "to_account_id": self.accounts["Undeposited Funds"]["id"],
+            "amount": 2500.0,
+            "transfer_date": datetime.utcnow().isoformat(),
+            "reference_number": "TRF-TEST-001",
+            "memo": "Test valid transfer"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/transfers", json=valid_transfer)
+        self.assertEqual(response.status_code, 200)
+        transfer_result = response.json()
+        self.assertIn("transfer_id", transfer_result)
+        self.assertIn("transaction_number", transfer_result)
+        logger.info(f"Created valid transfer: {transfer_result['transaction_number']}")
+        
+        # Test transfer to same account (should return 400 error)
+        same_account_transfer = {
+            "from_account_id": self.accounts["Checking Account"]["id"],
+            "to_account_id": self.accounts["Checking Account"]["id"],
+            "amount": 1000.0,
+            "transfer_date": datetime.utcnow().isoformat(),
+            "memo": "Test same account transfer"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/transfers", json=same_account_transfer)
+        self.assertEqual(response.status_code, 400)
+        error_result = response.json()
+        self.assertIn("Cannot transfer to the same account", error_result["detail"])
+        logger.info("Correctly rejected transfer to same account")
+        
+        # Test transfer with non-existent account (should return 404 error)
+        invalid_account_transfer = {
+            "from_account_id": self.accounts["Checking Account"]["id"],
+            "to_account_id": str(uuid.uuid4()),  # Random non-existent ID
+            "amount": 1000.0,
+            "transfer_date": datetime.utcnow().isoformat(),
+            "memo": "Test invalid account transfer"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/transfers", json=invalid_account_transfer)
+        self.assertEqual(response.status_code, 404)
+        error_result = response.json()
+        self.assertIn("Destination account not found", error_result["detail"])
+        logger.info("Correctly rejected transfer with non-existent account")
+        
+        # Test transfer with negative amount (should return 400 error)
+        negative_amount_transfer = {
+            "from_account_id": self.accounts["Checking Account"]["id"],
+            "to_account_id": self.accounts["Undeposited Funds"]["id"],
+            "amount": -500.0,
+            "transfer_date": datetime.utcnow().isoformat(),
+            "memo": "Test negative amount transfer"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/transfers", json=negative_amount_transfer)
+        self.assertEqual(response.status_code, 400)
+        error_result = response.json()
+        self.assertIn("Transfer amount must be positive", error_result["detail"])
+        logger.info("Correctly rejected transfer with negative amount")
+        
+        # Verify journal entries were created and account balances updated
+        response = requests.get(f"{BACKEND_URL}/journal-entries")
+        self.assertEqual(response.status_code, 200)
+        journal_entries = response.json()
+        
+        # Find entries related to our transfer
+        transfer_entries = [entry for entry in journal_entries if entry.get("transaction_id") == transfer_result["transfer_id"]]
+        self.assertEqual(len(transfer_entries), 2)
+        
+        # Verify account balances were updated
+        response = requests.get(f"{BACKEND_URL}/accounts/{self.accounts['Checking Account']['id']}")
+        checking_account = response.json()
+        
+        response = requests.get(f"{BACKEND_URL}/accounts/{self.accounts['Undeposited Funds']['id']}")
+        undeposited_funds_account = response.json()
+        
+        logger.info("Enhanced Transfer Functionality tests passed")
+    
+    def test_15_payment_processing(self):
+        """Test payment processing endpoints"""
+        logger.info("Testing Payment Processing...")
+        
+        # Test receive payment
+        payment_data = {
+            "customer_id": self.customers["John Smith"]["id"],
+            "payment_amount": 1000.0,
+            "payment_method": "Check",
+            "payment_date": datetime.utcnow().isoformat(),
+            "deposit_to_account_id": self.accounts["Undeposited Funds"]["id"],
+            "invoice_applications": [
+                {
+                    "invoice_id": self.transactions["invoice"]["id"],
+                    "amount": 1000.0
+                }
+            ],
+            "memo": "Payment for invoice"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/payments/receive", params=payment_data)
+        self.assertEqual(response.status_code, 200)
+        payment_result = response.json()
+        self.assertIn("payment_id", payment_result)
+        logger.info(f"Created payment receipt: {payment_result['payment_id']}")
+        
+        # Test pay bills
+        bill_payment_data = {
+            "payment_date": datetime.utcnow().isoformat(),
+            "payment_account_id": self.accounts["Checking Account"]["id"],
+            "payment_method": "Check",
+            "bill_payments": [
+                {
+                    "bill_id": self.transactions["bill"]["id"],
+                    "amount": 500.0
+                }
+            ],
+            "memo": "Payment for bill"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/payments/pay-bills", params=bill_payment_data)
+        self.assertEqual(response.status_code, 200)
+        bill_payment_result = response.json()
+        self.assertIn("payment_id", bill_payment_result)
+        logger.info(f"Created bill payment: {bill_payment_result['payment_id']}")
+        
+        # Test make deposit
+        deposit_data = {
+            "deposit_date": datetime.utcnow().isoformat(),
+            "deposit_to_account_id": self.accounts["Checking Account"]["id"],
+            "payment_items": [
+                {
+                    "payment_id": payment_result["payment_id"],
+                    "amount": 1000.0
+                }
+            ],
+            "memo": "Deposit customer payment"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/deposits", params=deposit_data)
+        self.assertEqual(response.status_code, 200)
+        deposit_result = response.json()
+        self.assertIn("deposit_id", deposit_result)
+        logger.info(f"Created deposit: {deposit_result['deposit_id']}")
+        
+        # Test get open invoices
+        response = requests.get(f"{BACKEND_URL}/customers/{self.customers['John Smith']['id']}/open-invoices")
+        self.assertEqual(response.status_code, 200)
+        open_invoices = response.json()
+        logger.info(f"Retrieved {len(open_invoices)} open invoices for customer")
+        
+        # Test get open bills
+        response = requests.get(f"{BACKEND_URL}/vendors/{self.vendors['Acme Supplies']['id']}/open-bills")
+        self.assertEqual(response.status_code, 200)
+        open_bills = response.json()
+        logger.info(f"Retrieved {len(open_bills)} open bills for vendor")
+        
+        # Test get undeposited payments
+        response = requests.get(f"{BACKEND_URL}/payments/undeposited")
+        self.assertEqual(response.status_code, 200)
+        undeposited_payments = response.json()
+        logger.info(f"Retrieved {len(undeposited_payments)} undeposited payments")
+        
+        logger.info("Payment Processing tests passed")
+    
+    def test_16_data_integrity(self):
+        """Test data integrity and serialization"""
+        logger.info("Testing Data Integrity and Serialization...")
+        
+        # Test GET /api/journal-entries
+        response = requests.get(f"{BACKEND_URL}/journal-entries")
+        self.assertEqual(response.status_code, 200)
+        journal_entries = response.json()
+        
+        # Verify no MongoDB ObjectId issues
+        for entry in journal_entries:
+            self.assertNotIn("_id", entry)
+            self.assertTrue(isinstance(entry["id"], str))
+            self.assertTrue(isinstance(entry["transaction_id"], str))
+            self.assertTrue(isinstance(entry["account_id"], str))
+        
+        logger.info(f"Journal entries serialization verified for {len(journal_entries)} entries")
+        
+        # Test GET /api/transactions
+        response = requests.get(f"{BACKEND_URL}/transactions")
+        self.assertEqual(response.status_code, 200)
+        transactions = response.json()
+        
+        # Verify no MongoDB ObjectId issues
+        for transaction in transactions:
+            self.assertNotIn("_id", transaction)
+            self.assertTrue(isinstance(transaction["id"], str))
+            if transaction.get("customer_id"):
+                self.assertTrue(isinstance(transaction["customer_id"], str))
+            if transaction.get("vendor_id"):
+                self.assertTrue(isinstance(transaction["vendor_id"], str))
+        
+        logger.info(f"Transactions serialization verified for {len(transactions)} transactions")
+        
+        # Test GET /api/accounts
+        response = requests.get(f"{BACKEND_URL}/accounts")
+        self.assertEqual(response.status_code, 200)
+        accounts = response.json()
+        
+        # Verify no MongoDB ObjectId issues
+        for account in accounts:
+            self.assertNotIn("_id", account)
+            self.assertTrue(isinstance(account["id"], str))
+            if account.get("parent_id"):
+                self.assertTrue(isinstance(account["parent_id"], str))
+        
+        logger.info(f"Accounts serialization verified for {len(accounts)} accounts")
+        
+        logger.info("Data Integrity and Serialization tests passed")
         logger.info("All tests completed successfully!")
 
 
