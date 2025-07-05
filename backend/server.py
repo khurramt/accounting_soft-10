@@ -757,7 +757,13 @@ async def create_transaction(transaction: TransactionCreate):
 @api_router.get("/transactions", response_model=List[Transaction])
 async def get_transactions():
     transactions = await db.transactions.find().to_list(1000)
-    return [Transaction(**transaction) for transaction in transactions]
+    result = []
+    for transaction in transactions:
+        # Remove MongoDB ObjectId field
+        if "_id" in transaction:
+            del transaction["_id"]
+        result.append(Transaction(**transaction))
+    return result
 
 @api_router.get("/transactions/{transaction_id}", response_model=Transaction)
 async def get_transaction(transaction_id: str):
