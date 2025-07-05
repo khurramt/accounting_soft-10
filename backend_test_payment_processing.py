@@ -374,17 +374,23 @@ class QBClonePaymentProcessingTest(unittest.TestCase):
             deposit_data = {
                 "deposit_date": datetime.utcnow().isoformat(),
                 "deposit_to_account_id": self.accounts["Checking Account"]["id"],
-                "payment_items": [
-                    {
-                        "payment_id": payment["id"],
-                        "amount": payment["total"]
-                    } for payment in undeposited_payments
-                ],
                 "memo": "Test deposit"
             }
             
+            # Add payment items as a separate parameter
+            payment_items = [
+                {
+                    "payment_id": payment["id"],
+                    "amount": payment["total"]
+                } for payment in undeposited_payments
+            ]
+            
             # Send deposit request
-            response = requests.post(f"{BACKEND_URL}/deposits", params=deposit_data)
+            response = requests.post(
+                f"{BACKEND_URL}/deposits", 
+                params=deposit_data,
+                json=payment_items
+            )
             self.assertEqual(response.status_code, 200, "Failed to make deposit")
             
             deposit_result = response.json()
