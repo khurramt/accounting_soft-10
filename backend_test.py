@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Get the backend URL from frontend/.env
-BACKEND_URL = "https://0b7be954-c5a0-45b7-af73-a164e3865267.preview.emergentagent.com/api"
+BACKEND_URL = "https://59e3823b-f787-4778-8068-10f42274f8c8.preview.emergentagent.com/api"
 
 class QBCloneBackendTest(unittest.TestCase):
     """Test suite for QBClone accounting backend API"""
