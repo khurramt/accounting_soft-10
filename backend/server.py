@@ -1138,12 +1138,22 @@ async def get_customer_open_invoices(customer_id: str):
         "status": {"$in": ["Open", "Partial"]}
     }).to_list(1000)
     
-    # Calculate remaining balance for each invoice
+    # Convert to proper Transaction objects and calculate remaining balance
+    result = []
     for invoice in invoices:
+        # Remove MongoDB ObjectId field
+        if "_id" in invoice:
+            del invoice["_id"]
+        
+        # Calculate remaining balance
         if "balance" not in invoice:
             invoice["balance"] = invoice["total"]
+        
+        # Convert to Transaction object to ensure proper serialization
+        transaction_obj = Transaction(**invoice)
+        result.append(transaction_obj.dict())
     
-    return invoices
+    return result
 
 @api_router.get("/vendors/{vendor_id}/open-bills")
 async def get_vendor_open_bills(vendor_id: str):
