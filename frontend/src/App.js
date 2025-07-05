@@ -570,6 +570,8 @@ function App() {
           {currentPage === 'purchase-orders' && <TransactionFormPage transactionType="Purchase Order" vendors={vendors} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
           {currentPage === 'checks' && <ChecksPage accounts={accounts} vendors={vendors} items={items} onRefresh={fetchTransactions} />}
           {currentPage === 'transfers' && <TransfersPage accounts={accounts} onRefresh={fetchAccounts} />}
+          {currentPage === 'deposits' && <MakeDeposits accounts={accounts} onRefresh={fetchTransactions} />}
+          {currentPage === 'journal-entry' && <JournalEntry accounts={accounts} onRefresh={fetchTransactions} onCancel={() => setCurrentPage('dashboard')} />}
           {currentPage === 'reconcile' && <BankingCenter accounts={accounts} transactions={transactions} onRefresh={fetchAccounts} />}
           {currentPage === 'reports' && <ReportsCenter />}
           {currentPage === 'memorized-transactions' && <MemorizedTransactionsPage memorizedTransactions={memorizedTransactions} onRefresh={fetchMemorizedTransactions} />}
