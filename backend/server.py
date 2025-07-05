@@ -3265,19 +3265,23 @@ async def delete_user(user_id: str):
     return {"message": "User deactivated successfully"}
 
 # Authentication Endpoints
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 @api_router.post("/auth/login")
-async def login(username: str, password: str):
+async def login(login_data: LoginRequest):
     """User login"""
-    user = await db.users.find_one({"username": username, "active": True})
+    user = await db.users.find_one({"username": login_data.username, "active": True})
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # In a real application, you would verify the hashed password here
-    if user["password"] != password:
+    # Verify the password using bcrypt
+    if not verify_password(login_data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Create session token
-    session_token = str(uuid.uuid4())
+    session_token = generate_session_token()
     session = UserSession(
         user_id=user["id"],
         session_token=session_token,
@@ -3285,6 +3289,9 @@ async def login(username: str, password: str):
     )
     
     await db.user_sessions.insert_one(session.dict())
+    
+    # Update last login
+    await db.users.update_one({"id": user["id"]}, {"$set": {"last_login": datetime.utcnow()}})
     
     return {
         "user_id": user["id"],
