@@ -234,6 +234,24 @@ backend:
         agent: "main"
         comment: "Implemented reconciliation report endpoint for generating reports on account reconciliations."
 
+  - task: "Enhanced Reports and Dashboard Analytics APIs"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested all enhanced reporting and dashboard analytics APIs. Fixed issues with async generator expressions in cash flow projections and dashboard metrics endpoints. All endpoints now return 200 status codes with proper data structures. Tested customer/vendor aging details, cash flow projections, profit & loss by class/location, dashboard metrics, KPI trends, and drill-down functionality."
+      - working: false
+        agent: "testing"
+        comment: "Initial testing found issues with the cash flow projections and dashboard metrics endpoints. Both were returning 500 errors due to improper use of async generator expressions."
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented enhanced reporting and dashboard analytics APIs for Phase 3, including customer/vendor aging details, cash flow projections, profit & loss by class/location, dashboard metrics, KPI trends, and drill-down functionality."
+
   - task: "Advanced Payment Processing"
     implemented: true
     working: true
