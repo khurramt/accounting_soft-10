@@ -9,6 +9,10 @@ import TransactionForm from "./components/TransactionForm";
 import TransactionFormPage from "./components/TransactionFormPage";
 import BankingCenter from "./components/BankingCenter";
 import ReportsCenter from "./components/ReportsCenter";
+import ReceivePayments from "./components/ReceivePayments";
+import PayBills from "./components/PayBills";
+import MakeDeposits from "./components/MakeDeposits";
+import JournalEntry from "./components/JournalEntry";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
