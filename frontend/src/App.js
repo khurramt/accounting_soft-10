@@ -564,7 +564,7 @@ function App() {
           {currentPage === 'invoices' && <TransactionFormPage transactionType="Invoice" customers={customers} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
           {currentPage === 'sales-receipts' && <TransactionFormPage transactionType="Sales Receipt" customers={customers} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
           {currentPage === 'estimates' && <TransactionFormPage transactionType="Estimate" customers={customers} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
-          {currentPage === 'receive-payments' && <ReceivePaymentsPage customers={customers} transactions={transactions} accounts={accounts} onRefresh={fetchTransactions} />}
+          {currentPage === 'receive-payments' && <ReceivePayments customers={customers} accounts={accounts} onRefresh={fetchTransactions} />}
           {currentPage === 'bills' && <TransactionFormPage transactionType="Bill" vendors={vendors} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
           {currentPage === 'pay-bills' && <PayBillsPage vendors={vendors} transactions={transactions} accounts={accounts} onRefresh={fetchTransactions} />}
           {currentPage === 'purchase-orders' && <TransactionFormPage transactionType="Purchase Order" vendors={vendors} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
