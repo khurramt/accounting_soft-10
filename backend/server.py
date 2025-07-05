@@ -863,6 +863,16 @@ async def get_roles():
     return [Role(**role) for role in roles]
 
 # Journal entry endpoints
+@api_router.post("/journal-entries", response_model=JournalEntry)
+async def create_journal_entry(entry: JournalEntry):
+    """Create a single journal entry"""
+    await db.journal_entries.insert_one(entry.dict())
+    
+    # Update account balance
+    await update_account_balance(entry.account_id)
+    
+    return entry
+
 @api_router.get("/journal-entries", response_model=List[JournalEntry])
 async def get_journal_entries():
     entries = await db.journal_entries.find().to_list(1000)
