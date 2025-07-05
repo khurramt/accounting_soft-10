@@ -770,7 +770,172 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
-# Security configuration
+# Phase 5: Advanced Business Logic Models
+
+# Inventory Management Models
+class InventoryTransaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    item_id: str
+    transaction_type: str  # "purchase", "sale", "adjustment"
+    quantity: float
+    unit_cost: float
+    total_cost: float
+    transaction_date: datetime
+    reference_transaction_id: Optional[str] = None  # Link to invoice/bill
+    lot_number: Optional[str] = None
+    expiration_date: Optional[datetime] = None
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class InventoryAdjustment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    item_id: str
+    adjustment_type: InventoryAdjustmentType
+    quantity_before: float
+    quantity_after: float
+    quantity_change: float
+    unit_cost: float
+    total_cost_impact: float
+    reason: str
+    reference_number: Optional[str] = None
+    adjusted_by: str  # User ID
+    adjustment_date: datetime
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class InventoryAlert(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    item_id: str
+    alert_type: str  # "reorder", "low_stock", "out_of_stock"
+    current_quantity: float
+    reorder_point: float
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    acknowledged_at: Optional[datetime] = None
+    acknowledged_by: Optional[str] = None
+
+# Payroll & HR Models
+class PayPeriod(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    period_type: PayPeriodType
+    start_date: datetime
+    end_date: datetime
+    pay_date: datetime
+    is_closed: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class TimeEntry(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    employee_id: str
+    date: datetime
+    clock_in: datetime
+    clock_out: Optional[datetime] = None
+    break_minutes: int = 0
+    total_hours: float = 0.0
+    regular_hours: float = 0.0
+    overtime_hours: float = 0.0
+    status: TimeEntryStatus = TimeEntryStatus.DRAFT
+    notes: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class PayrollItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    employee_id: str
+    pay_period_id: str
+    regular_hours: float = 0.0
+    overtime_hours: float = 0.0
+    regular_rate: float = 0.0
+    overtime_rate: float = 0.0
+    gross_pay: float = 0.0
+    federal_income_tax: float = 0.0
+    state_income_tax: float = 0.0
+    social_security_tax: float = 0.0
+    medicare_tax: float = 0.0
+    total_deductions: float = 0.0
+    net_pay: float = 0.0
+    status: PayrollStatus = PayrollStatus.PENDING
+    processed_at: Optional[datetime] = None
+    paid_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class PayStub(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    payroll_item_id: str
+    employee_id: str
+    pay_period_id: str
+    pay_date: datetime
+    earnings: List[Dict[str, Any]] = []  # [{"type": "regular", "hours": 40, "rate": 15.00, "amount": 600.00}]
+    deductions: List[Dict[str, Any]] = []  # [{"type": "federal_tax", "amount": 120.00}]
+    gross_pay: float = 0.0
+    total_deductions: float = 0.0
+    net_pay: float = 0.0
+    year_to_date_gross: float = 0.0
+    year_to_date_deductions: float = 0.0
+    year_to_date_net: float = 0.0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class TaxRate(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    tax_type: TaxType
+    state: Optional[str] = None  # For state taxes
+    rate: float  # Percentage rate
+    min_income: float = 0.0
+    max_income: Optional[float] = None
+    effective_date: datetime
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Create models for API endpoints
+class InventoryTransactionCreate(BaseModel):
+    item_id: str
+    transaction_type: str
+    quantity: float
+    unit_cost: float
+    transaction_date: datetime
+    reference_transaction_id: Optional[str] = None
+    lot_number: Optional[str] = None
+    expiration_date: Optional[datetime] = None
+    notes: Optional[str] = None
+
+class InventoryAdjustmentCreate(BaseModel):
+    item_id: str
+    adjustment_type: InventoryAdjustmentType
+    quantity_after: float
+    unit_cost: float
+    reason: str
+    reference_number: Optional[str] = None
+    adjusted_by: str
+    adjustment_date: datetime
+    notes: Optional[str] = None
+
+class PayPeriodCreate(BaseModel):
+    period_type: PayPeriodType
+    start_date: datetime
+    end_date: datetime
+    pay_date: datetime
+
+class TimeEntryCreate(BaseModel):
+    employee_id: str
+    date: datetime
+    clock_in: datetime
+    clock_out: Optional[datetime] = None
+    break_minutes: int = 0
+    notes: Optional[str] = None
+
+class PayrollItemCreate(BaseModel):
+    employee_id: str
+    pay_period_id: str
+    regular_hours: float = 0.0
+    overtime_hours: float = 0.0
+
+class TaxRateCreate(BaseModel):
+    tax_type: TaxType
+    state: Optional[str] = None
+    rate: float
+    min_income: float = 0.0
+    max_income: Optional[float] = None
+    effective_date: datetime
 security = HTTPBearer()
 
 # Password hashing utilities
