@@ -1,4 +1,5 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Query, UploadFile, File, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -18,6 +19,8 @@ import csv
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 import calendar
+import bcrypt
+import secrets
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
