@@ -314,6 +314,12 @@ class Item(BaseModel):
     preferred_vendor_id: Optional[str] = None
     tax_code: Optional[str] = None
     active: bool = True
+    # Phase 5: Advanced Inventory Management
+    costing_method: CostingMethod = CostingMethod.FIFO
+    min_stock_level: Optional[float] = None
+    max_stock_level: Optional[float] = None
+    average_cost: Optional[float] = None
+    last_cost: Optional[float] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class ItemCreate(BaseModel):
