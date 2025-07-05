@@ -59,6 +59,7 @@ const ProfessionalLayout = ({ children, currentPage, onPageChange, companyName }
       items: [
         { id: 'transfers', label: 'Transfer Funds', icon: '🔄' },
         { id: 'deposits', label: 'Make Deposits', icon: '🏦' },
+        { id: 'journal-entry', label: 'Journal Entry', icon: '📝' },
         { id: 'reconcile', label: 'Reconcile', icon: '⚖️' },
         { id: 'bank-feeds', label: 'Bank Feeds', icon: '🔗' },
       ]
