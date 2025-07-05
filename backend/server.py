@@ -604,7 +604,12 @@ async def create_vendor(vendor: VendorCreate):
 @api_router.get("/vendors", response_model=List[Vendor])
 async def get_vendors():
     vendors = await db.vendors.find({"active": True}).to_list(1000)
-    return [Vendor(**vendor) for vendor in vendors]
+    result = []
+    for vendor in vendors:
+        if "_id" in vendor:
+            del vendor["_id"]
+        result.append(Vendor(**vendor))
+    return result
 
 @api_router.get("/vendors/{vendor_id}", response_model=Vendor)
 async def get_vendor(vendor_id: str):
