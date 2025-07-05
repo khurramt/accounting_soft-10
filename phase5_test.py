@@ -897,9 +897,49 @@ class QBClonePhase5Test(unittest.TestCase):
         """Test payroll summary report"""
         logger.info("Testing Payroll Summary Report...")
         
+        # Create payroll data if none exists
+        if not self.payroll_items:
+            # Create pay period if needed
+            if not self.pay_periods:
+                pay_period_data = {
+                    "period_type": "Bi-weekly",
+                    "start_date": (datetime.utcnow() - timedelta(days=14)).isoformat(),
+                    "end_date": (datetime.utcnow() - timedelta(days=1)).isoformat(),
+                    "pay_date": (datetime.utcnow() + timedelta(days=5)).isoformat()
+                }
+                
+                response = requests.post(f"{BACKEND_URL}/pay-periods", json=pay_period_data)
+                self.assertEqual(response.status_code, 200)
+                pay_period = response.json()
+                self.pay_periods[pay_period["id"]] = pay_period
+                logger.info(f"Created pay period: {pay_period['id']}")
+            
+            # Create payroll item
+            employee = self.employees["John Smith"]
+            pay_period_id = list(self.pay_periods.keys())[0]
+            
+            payroll_data = {
+                "employee_id": employee["id"],
+                "pay_period_id": pay_period_id,
+                "regular_hours": 40.0,
+                "overtime_hours": 5.0
+            }
+            
+            response = requests.post(f"{BACKEND_URL}/payroll-items", json=payroll_data)
+            self.assertEqual(response.status_code, 200)
+            payroll_obj = response.json()
+            self.payroll_items[payroll_obj["id"]] = payroll_obj
+            logger.info(f"Created payroll item: {payroll_obj['id']} with gross pay: ${payroll_obj['gross_pay']:.2f}")
+            
+            # Process the payroll item
+            payroll_id = payroll_obj["id"]
+            response = requests.put(f"{BACKEND_URL}/payroll-items/{payroll_id}/process")
+            self.assertEqual(response.status_code, 200)
+            logger.info(f"Processed payroll item: {payroll_id}")
+        
         # Set date range for report
         start_date = (datetime.utcnow() - timedelta(days=30)).isoformat()
-        end_date = datetime.utcnow().isoformat()
+        end_date = (datetime.utcnow() + timedelta(days=30)).isoformat()  # Extend end date to include current payroll
         
         # Get payroll summary report
         response = requests.get(f"{BACKEND_URL}/reports/payroll-summary?start_date={start_date}&end_date={end_date}")
