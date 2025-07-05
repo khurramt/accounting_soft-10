@@ -1411,5 +1411,263 @@ DATA:OFXSGML
         
         logger.info("Banking and Reconciliation tests passed")
 
+    def test_18_enhanced_reports(self):
+        """Test enhanced reporting endpoints for Phase 3"""
+        logger.info("Testing Enhanced Reports...")
+        
+        # 1. Test Customer Aging Details
+        if "John Smith" in self.customers:
+            customer_id = self.customers["John Smith"]["id"]
+            response = requests.get(f"{BACKEND_URL}/reports/customer-aging-details/{customer_id}")
+            self.assertEqual(response.status_code, 200)
+            customer_aging = response.json()
+            
+            self.assertIn("customer", customer_aging)
+            self.assertIn("aging_buckets", customer_aging)
+            self.assertIn("summary", customer_aging)
+            
+            # Verify structure
+            self.assertEqual(customer_aging["customer"]["name"], "John Smith")
+            self.assertIn("current", customer_aging["aging_buckets"])
+            self.assertIn("days_31_60", customer_aging["aging_buckets"])
+            self.assertIn("days_61_90", customer_aging["aging_buckets"])
+            self.assertIn("over_90", customer_aging["aging_buckets"])
+            
+            # Verify summary calculations
+            self.assertEqual(
+                customer_aging["summary"]["total_outstanding"],
+                customer_aging["summary"]["current_total"] +
+                customer_aging["summary"]["days_31_60_total"] +
+                customer_aging["summary"]["days_61_90_total"] +
+                customer_aging["summary"]["over_90_total"]
+            )
+            
+            logger.info(f"Customer aging details retrieved with total outstanding: ${customer_aging['summary']['total_outstanding']:.2f}")
+        
+        # 2. Test Vendor Aging Details
+        if "Acme Supplies" in self.vendors:
+            vendor_id = self.vendors["Acme Supplies"]["id"]
+            response = requests.get(f"{BACKEND_URL}/reports/vendor-aging-details/{vendor_id}")
+            self.assertEqual(response.status_code, 200)
+            vendor_aging = response.json()
+            
+            self.assertIn("vendor", vendor_aging)
+            self.assertIn("aging_buckets", vendor_aging)
+            self.assertIn("summary", vendor_aging)
+            
+            # Verify structure
+            self.assertEqual(vendor_aging["vendor"]["name"], "Acme Supplies")
+            self.assertIn("current", vendor_aging["aging_buckets"])
+            self.assertIn("days_31_60", vendor_aging["aging_buckets"])
+            self.assertIn("days_61_90", vendor_aging["aging_buckets"])
+            self.assertIn("over_90", vendor_aging["aging_buckets"])
+            
+            # Verify summary calculations
+            self.assertEqual(
+                vendor_aging["summary"]["total_outstanding"],
+                vendor_aging["summary"]["current_total"] +
+                vendor_aging["summary"]["days_31_60_total"] +
+                vendor_aging["summary"]["days_61_90_total"] +
+                vendor_aging["summary"]["over_90_total"]
+            )
+            
+            logger.info(f"Vendor aging details retrieved with total outstanding: ${vendor_aging['summary']['total_outstanding']:.2f}")
+        
+        # 3. Test Cash Flow Projections
+        response = requests.get(f"{BACKEND_URL}/reports/cash-flow-projections?months=12")
+        self.assertEqual(response.status_code, 200)
+        cash_flow = response.json()
+        
+        self.assertIn("current_cash_position", cash_flow)
+        self.assertIn("total_receivables", cash_flow)
+        self.assertIn("total_payables", cash_flow)
+        self.assertIn("projections", cash_flow)
+        
+        # Verify projections structure
+        self.assertEqual(len(cash_flow["projections"]), 12)  # 12 months
+        for projection in cash_flow["projections"]:
+            self.assertIn("month", projection)
+            self.assertIn("month_name", projection)
+            self.assertIn("opening_balance", projection)
+            self.assertIn("expected_inflows", projection)
+            self.assertIn("projected_inflows", projection)
+            self.assertIn("expected_outflows", projection)
+            self.assertIn("projected_outflows", projection)
+            self.assertIn("net_cash_flow", projection)
+            self.assertIn("closing_balance", projection)
+        
+        logger.info(f"Cash flow projections retrieved for 12 months with current cash position: ${cash_flow['current_cash_position']:.2f}")
+        
+        # 4. Test Profit & Loss by Class
+        # First, ensure we have at least one class
+        if not hasattr(self, 'class_id'):
+            class_data = {"name": "Test Class"}
+            response = requests.post(f"{BACKEND_URL}/classes", json=class_data)
+            self.assertEqual(response.status_code, 200)
+            self.class_id = response.json()["id"]
+        
+        response = requests.get(f"{BACKEND_URL}/reports/profit-loss-by-class?start_date=2023-01-01&end_date=2023-12-31")
+        self.assertEqual(response.status_code, 200)
+        pl_by_class = response.json()
+        
+        self.assertIn("report_period", pl_by_class)
+        self.assertIn("classes", pl_by_class)
+        self.assertIn("totals", pl_by_class)
+        
+        # Verify structure
+        self.assertIn("start_date", pl_by_class["report_period"])
+        self.assertIn("end_date", pl_by_class["report_period"])
+        self.assertIn("total_income", pl_by_class["totals"])
+        self.assertIn("total_expenses", pl_by_class["totals"])
+        self.assertIn("net_income", pl_by_class["totals"])
+        
+        # Verify calculations
+        self.assertEqual(
+            pl_by_class["totals"]["net_income"],
+            pl_by_class["totals"]["total_income"] - pl_by_class["totals"]["total_expenses"]
+        )
+        
+        logger.info(f"Profit & Loss by Class report retrieved with net income: ${pl_by_class['totals']['net_income']:.2f}")
+        
+        # 5. Test Profit & Loss by Location
+        # First, ensure we have at least one location
+        if not hasattr(self, 'location_id'):
+            location_data = {"name": "Test Location"}
+            response = requests.post(f"{BACKEND_URL}/locations", json=location_data)
+            self.assertEqual(response.status_code, 200)
+            self.location_id = response.json()["id"]
+        
+        response = requests.get(f"{BACKEND_URL}/reports/profit-loss-by-location?start_date=2023-01-01&end_date=2023-12-31")
+        self.assertEqual(response.status_code, 200)
+        pl_by_location = response.json()
+        
+        self.assertIn("report_period", pl_by_location)
+        self.assertIn("locations", pl_by_location)
+        self.assertIn("totals", pl_by_location)
+        
+        # Verify structure
+        self.assertIn("start_date", pl_by_location["report_period"])
+        self.assertIn("end_date", pl_by_location["report_period"])
+        self.assertIn("total_income", pl_by_location["totals"])
+        self.assertIn("total_expenses", pl_by_location["totals"])
+        self.assertIn("net_income", pl_by_location["totals"])
+        
+        # Verify calculations
+        self.assertEqual(
+            pl_by_location["totals"]["net_income"],
+            pl_by_location["totals"]["total_income"] - pl_by_location["totals"]["total_expenses"]
+        )
+        
+        logger.info(f"Profit & Loss by Location report retrieved with net income: ${pl_by_location['totals']['net_income']:.2f}")
+        
+        logger.info("Enhanced Reports tests passed")
+    
+    def test_19_dashboard_analytics(self):
+        """Test dashboard analytics endpoints for Phase 3"""
+        logger.info("Testing Dashboard Analytics...")
+        
+        # 1. Test Dashboard Metrics
+        response = requests.get(f"{BACKEND_URL}/analytics/dashboard-metrics")
+        self.assertEqual(response.status_code, 200)
+        dashboard = response.json()
+        
+        self.assertIn("financial_metrics", dashboard)
+        self.assertIn("alerts", dashboard)
+        self.assertIn("recent_activity", dashboard)
+        
+        # Verify financial metrics structure
+        metrics = dashboard["financial_metrics"]
+        self.assertIn("total_cash", metrics)
+        self.assertIn("total_ar", metrics)
+        self.assertIn("total_ap", metrics)
+        self.assertIn("working_capital", metrics)
+        self.assertIn("current_month_income", metrics)
+        self.assertIn("current_month_expenses", metrics)
+        self.assertIn("current_month_profit", metrics)
+        
+        # Verify calculations
+        self.assertEqual(metrics["working_capital"], metrics["total_ar"] - metrics["total_ap"])
+        self.assertEqual(metrics["current_month_profit"], metrics["current_month_income"] - metrics["current_month_expenses"])
+        
+        # Verify alerts structure
+        alerts = dashboard["alerts"]
+        self.assertIn("overdue_invoices_count", alerts)
+        self.assertIn("overdue_amount", alerts)
+        self.assertIn("cash_flow_status", alerts)
+        
+        logger.info(f"Dashboard metrics retrieved with working capital: ${metrics['working_capital']:.2f}")
+        
+        # 2. Test KPI Trends
+        response = requests.get(f"{BACKEND_URL}/analytics/kpi-trends?period=12months")
+        self.assertEqual(response.status_code, 200)
+        trends = response.json()
+        
+        self.assertIn("trends", trends)
+        self.assertIsInstance(trends["trends"], list)
+        
+        if trends["trends"]:
+            trend = trends["trends"][0]
+            self.assertIn("period", trend)
+            self.assertIn("income", trend)
+            self.assertIn("expenses", trend)
+            self.assertIn("profit", trend)
+            self.assertIn("transaction_count", trend)
+            
+            # Verify calculations
+            self.assertEqual(trend["profit"], trend["income"] - trend["expenses"])
+        
+        logger.info(f"KPI trends retrieved with {len(trends['trends'])} periods")
+        
+        # 3. Test Drill-Down: Income
+        response = requests.get(f"{BACKEND_URL}/analytics/drill-down/income?period=current_month")
+        self.assertEqual(response.status_code, 200)
+        income_drill = response.json()
+        
+        self.assertIn("metric", income_drill)
+        self.assertIn("period", income_drill)
+        self.assertIn("total", income_drill)
+        self.assertIn("transactions", income_drill)
+        
+        self.assertEqual(income_drill["metric"], "income")
+        
+        logger.info(f"Income drill-down retrieved with total: ${income_drill['total']:.2f}")
+        
+        # 4. Test Drill-Down: Expenses
+        response = requests.get(f"{BACKEND_URL}/analytics/drill-down/expenses?period=current_month")
+        self.assertEqual(response.status_code, 200)
+        expenses_drill = response.json()
+        
+        self.assertIn("metric", expenses_drill)
+        self.assertIn("period", expenses_drill)
+        self.assertIn("total", expenses_drill)
+        self.assertIn("transactions", expenses_drill)
+        
+        self.assertEqual(expenses_drill["metric"], "expenses")
+        
+        logger.info(f"Expenses drill-down retrieved with total: ${expenses_drill['total']:.2f}")
+        
+        # 5. Test Drill-Down: Overdue Invoices
+        response = requests.get(f"{BACKEND_URL}/analytics/drill-down/overdue_invoices")
+        self.assertEqual(response.status_code, 200)
+        overdue_drill = response.json()
+        
+        self.assertIn("metric", overdue_drill)
+        self.assertIn("period", overdue_drill)
+        self.assertIn("total", overdue_drill)
+        self.assertIn("count", overdue_drill)
+        self.assertIn("invoices", overdue_drill)
+        
+        self.assertEqual(overdue_drill["metric"], "overdue_invoices")
+        
+        logger.info(f"Overdue invoices drill-down retrieved with count: {overdue_drill['count']}")
+        
+        # 6. Test Invalid Metric
+        response = requests.get(f"{BACKEND_URL}/analytics/drill-down/invalid_metric")
+        self.assertEqual(response.status_code, 400)
+        error = response.json()
+        self.assertIn("detail", error)
+        
+        logger.info("Dashboard Analytics tests passed")
+
 if __name__ == "__main__":
     unittest.main()
