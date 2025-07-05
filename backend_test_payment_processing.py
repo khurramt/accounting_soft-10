@@ -376,7 +376,7 @@ class QBClonePaymentProcessingTest(unittest.TestCase):
             }
             
             # Send deposit request
-            response = requests.post(f"{BACKEND_URL}/deposits", json=deposit_data)
+            response = requests.post(f"{BACKEND_URL}/deposits", params=deposit_data)
             self.assertEqual(response.status_code, 200, "Failed to make deposit")
             
             deposit_result = response.json()
