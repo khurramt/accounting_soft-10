@@ -264,6 +264,20 @@ function App() {
                 </button>
               </li>
               
+              {/* Interactive Dashboard */}
+              <li>
+                <button
+                  onClick={() => setCurrentPage('interactive-dashboard')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                    currentPage === 'interactive-dashboard' 
+                      ? 'bg-blue-100 text-blue-700 font-medium' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  📈 Interactive Dashboard
+                </button>
+              </li>
+              
               {/* Lists */}
               <li className="pt-2">
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-1">Lists</div>
