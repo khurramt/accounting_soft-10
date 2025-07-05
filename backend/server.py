@@ -1571,6 +1571,642 @@ async def get_ap_aging():
     
     return {"ap_aging": ap_aging}
 
+# Enhanced Reports - Phase 3
+
+# Customer/Vendor Aging Details with Drill-down
+@api_router.get("/reports/customer-aging-details/{customer_id}")
+async def get_customer_aging_details(customer_id: str):
+    """Get detailed aging information for a specific customer with drill-down capability"""
+    customer = await db.customers.find_one({"id": customer_id})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Get all open invoices for this customer
+    invoices = await db.transactions.find({
+        "customer_id": customer_id,
+        "transaction_type": "Invoice",
+        "status": "Open"
+    }).to_list(1000)
+    
+    today = datetime.utcnow()
+    aging_details = {
+        "customer": Customer(**customer),
+        "aging_buckets": {
+            "current": [],
+            "days_31_60": [],
+            "days_61_90": [],
+            "over_90": []
+        },
+        "summary": {
+            "current_total": 0,
+            "days_31_60_total": 0,
+            "days_61_90_total": 0,
+            "over_90_total": 0,
+            "total_outstanding": 0
+        }
+    }
+    
+    for invoice in invoices:
+        days_overdue = (today - invoice["date"]).days
+        invoice_data = {
+            "invoice_id": invoice["id"],
+            "invoice_number": invoice.get("transaction_number", ""),
+            "date": invoice["date"],
+            "due_date": invoice.get("due_date"),
+            "amount": invoice["total"],
+            "balance": invoice.get("balance", invoice["total"]),
+            "days_overdue": days_overdue
+        }
+        
+        if days_overdue <= 30:
+            aging_details["aging_buckets"]["current"].append(invoice_data)
+            aging_details["summary"]["current_total"] += invoice_data["balance"]
+        elif 31 <= days_overdue <= 60:
+            aging_details["aging_buckets"]["days_31_60"].append(invoice_data)
+            aging_details["summary"]["days_31_60_total"] += invoice_data["balance"]
+        elif 61 <= days_overdue <= 90:
+            aging_details["aging_buckets"]["days_61_90"].append(invoice_data)
+            aging_details["summary"]["days_61_90_total"] += invoice_data["balance"]
+        else:
+            aging_details["aging_buckets"]["over_90"].append(invoice_data)
+            aging_details["summary"]["over_90_total"] += invoice_data["balance"]
+    
+    aging_details["summary"]["total_outstanding"] = (
+        aging_details["summary"]["current_total"] +
+        aging_details["summary"]["days_31_60_total"] +
+        aging_details["summary"]["days_61_90_total"] +
+        aging_details["summary"]["over_90_total"]
+    )
+    
+    return aging_details
+
+@api_router.get("/reports/vendor-aging-details/{vendor_id}")
+async def get_vendor_aging_details(vendor_id: str):
+    """Get detailed aging information for a specific vendor with drill-down capability"""
+    vendor = await db.vendors.find_one({"id": vendor_id})
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    
+    # Get all open bills for this vendor
+    bills = await db.transactions.find({
+        "vendor_id": vendor_id,
+        "transaction_type": "Bill",
+        "status": "Open"
+    }).to_list(1000)
+    
+    today = datetime.utcnow()
+    aging_details = {
+        "vendor": Vendor(**vendor),
+        "aging_buckets": {
+            "current": [],
+            "days_31_60": [],
+            "days_61_90": [],
+            "over_90": []
+        },
+        "summary": {
+            "current_total": 0,
+            "days_31_60_total": 0,
+            "days_61_90_total": 0,
+            "over_90_total": 0,
+            "total_outstanding": 0
+        }
+    }
+    
+    for bill in bills:
+        days_overdue = (today - bill["date"]).days
+        bill_data = {
+            "bill_id": bill["id"],
+            "bill_number": bill.get("transaction_number", ""),
+            "date": bill["date"],
+            "due_date": bill.get("due_date"),
+            "amount": bill["total"],
+            "balance": bill.get("balance", bill["total"]),
+            "days_overdue": days_overdue
+        }
+        
+        if days_overdue <= 30:
+            aging_details["aging_buckets"]["current"].append(bill_data)
+            aging_details["summary"]["current_total"] += bill_data["balance"]
+        elif 31 <= days_overdue <= 60:
+            aging_details["aging_buckets"]["days_31_60"].append(bill_data)
+            aging_details["summary"]["days_31_60_total"] += bill_data["balance"]
+        elif 61 <= days_overdue <= 90:
+            aging_details["aging_buckets"]["days_61_90"].append(bill_data)
+            aging_details["summary"]["days_61_90_total"] += bill_data["balance"]
+        else:
+            aging_details["aging_buckets"]["over_90"].append(bill_data)
+            aging_details["summary"]["over_90_total"] += bill_data["balance"]
+    
+    aging_details["summary"]["total_outstanding"] = (
+        aging_details["summary"]["current_total"] +
+        aging_details["summary"]["days_31_60_total"] +
+        aging_details["summary"]["days_61_90_total"] +
+        aging_details["summary"]["over_90_total"]
+    )
+    
+    return aging_details
+
+# Cash Flow Projections
+@api_router.get("/reports/cash-flow-projections")
+async def get_cash_flow_projections(months: int = 12):
+    """Generate cash flow projections based on receivables, payables, and historical data"""
+    today = datetime.utcnow()
+    
+    # Get current cash position
+    cash_accounts = await db.accounts.find({
+        "detail_type": {"$in": ["Checking", "Savings"]},
+        "active": True
+    }).to_list(100)
+    
+    current_cash = sum(await calculate_account_balance(account["id"]) for account in cash_accounts)
+    
+    # Get receivables (invoices) 
+    invoices = await db.transactions.find({
+        "transaction_type": "Invoice",
+        "status": "Open"
+    }).to_list(1000)
+    
+    # Get payables (bills)
+    bills = await db.transactions.find({
+        "transaction_type": "Bill", 
+        "status": "Open"
+    }).to_list(1000)
+    
+    # Generate monthly projections
+    projections = []
+    running_balance = current_cash
+    
+    for month_offset in range(months):
+        month_start = today.replace(day=1) + timedelta(days=32*month_offset)
+        month_start = month_start.replace(day=1)
+        month_end = month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
+        
+        # Calculate expected cash inflows (receivables due this month)
+        expected_inflows = 0
+        for invoice in invoices:
+            due_date = invoice.get("due_date")
+            if due_date and month_start <= due_date <= month_end:
+                expected_inflows += invoice.get("balance", invoice["total"])
+        
+        # Calculate expected cash outflows (payables due this month)
+        expected_outflows = 0
+        for bill in bills:
+            due_date = bill.get("due_date")
+            if due_date and month_start <= due_date <= month_end:
+                expected_outflows += bill.get("balance", bill["total"])
+        
+        # Calculate historical average for this month (simplified)
+        historical_avg_inflow = expected_inflows * 0.8  # 80% collection rate assumption
+        historical_avg_outflow = expected_outflows * 0.9  # 90% payment rate assumption
+        
+        net_cash_flow = historical_avg_inflow - historical_avg_outflow
+        running_balance += net_cash_flow
+        
+        projections.append({
+            "month": month_start.strftime("%Y-%m"),
+            "month_name": month_start.strftime("%B %Y"),
+            "opening_balance": running_balance - net_cash_flow,
+            "expected_inflows": expected_inflows,
+            "projected_inflows": historical_avg_inflow,
+            "expected_outflows": expected_outflows,
+            "projected_outflows": historical_avg_outflow,
+            "net_cash_flow": net_cash_flow,
+            "closing_balance": running_balance
+        })
+    
+    return {
+        "current_cash_position": current_cash,
+        "total_receivables": sum(inv.get("balance", inv["total"]) for inv in invoices),
+        "total_payables": sum(bill.get("balance", bill["total"]) for bill in bills),
+        "projections": projections
+    }
+
+# Profit & Loss by Class/Location
+@api_router.get("/reports/profit-loss-by-class")
+async def get_profit_loss_by_class(
+    start_date: str = None,
+    end_date: str = None
+):
+    """Generate P&L report segmented by class"""
+    # Set default date range if not provided
+    if not start_date:
+        start_date = datetime.utcnow().replace(day=1).isoformat()
+    if not end_date:
+        end_date = datetime.utcnow().isoformat()
+    
+    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+    
+    # Get all classes
+    classes = await db.classes.find({"active": True}).to_list(100)
+    
+    # Get transactions within date range
+    transactions = await db.transactions.find({
+        "date": {"$gte": start_dt, "$lte": end_dt}
+    }).to_list(1000)
+    
+    # Initialize P&L structure
+    pl_by_class = {}
+    
+    # Add "Unclassified" for transactions without class assignment
+    all_classes = [{"id": None, "name": "Unclassified"}] + classes
+    
+    for class_item in all_classes:
+        class_id = class_item["id"]
+        class_name = class_item["name"]
+        
+        pl_by_class[class_name] = {
+            "class_id": class_id,
+            "class_name": class_name,
+            "income": [],
+            "expenses": [],
+            "total_income": 0,
+            "total_expenses": 0,
+            "net_income": 0
+        }
+    
+    # Process transactions
+    for transaction in transactions:
+        for line_item in transaction.get("line_items", []):
+            class_id = line_item.get("class_id")
+            class_name = next((c["name"] for c in all_classes if c["id"] == class_id), "Unclassified")
+            
+            if line_item.get("account_id"):
+                account = await db.accounts.find_one({"id": line_item["account_id"]})
+                if account:
+                    amount = line_item.get("amount", 0)
+                    
+                    if account["account_type"] == "Income":
+                        pl_by_class[class_name]["income"].append({
+                            "account_name": account["name"],
+                            "amount": amount,
+                            "transaction_id": transaction["id"],
+                            "transaction_type": transaction["transaction_type"],
+                            "date": transaction["date"]
+                        })
+                        pl_by_class[class_name]["total_income"] += amount
+                    
+                    elif account["account_type"] == "Expense":
+                        pl_by_class[class_name]["expenses"].append({
+                            "account_name": account["name"],
+                            "amount": amount,
+                            "transaction_id": transaction["id"],
+                            "transaction_type": transaction["transaction_type"],
+                            "date": transaction["date"]
+                        })
+                        pl_by_class[class_name]["total_expenses"] += amount
+    
+    # Calculate net income for each class
+    for class_name in pl_by_class:
+        pl_by_class[class_name]["net_income"] = (
+            pl_by_class[class_name]["total_income"] - 
+            pl_by_class[class_name]["total_expenses"]
+        )
+    
+    # Calculate totals
+    total_income = sum(data["total_income"] for data in pl_by_class.values())
+    total_expenses = sum(data["total_expenses"] for data in pl_by_class.values())
+    total_net_income = total_income - total_expenses
+    
+    return {
+        "report_period": {
+            "start_date": start_date,
+            "end_date": end_date
+        },
+        "classes": pl_by_class,
+        "totals": {
+            "total_income": total_income,
+            "total_expenses": total_expenses,
+            "net_income": total_net_income
+        }
+    }
+
+@api_router.get("/reports/profit-loss-by-location")
+async def get_profit_loss_by_location(
+    start_date: str = None,
+    end_date: str = None
+):
+    """Generate P&L report segmented by location"""
+    # Set default date range if not provided
+    if not start_date:
+        start_date = datetime.utcnow().replace(day=1).isoformat()
+    if not end_date:
+        end_date = datetime.utcnow().isoformat()
+    
+    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+    
+    # Get all locations
+    locations = await db.locations.find({"active": True}).to_list(100)
+    
+    # Get transactions within date range
+    transactions = await db.transactions.find({
+        "date": {"$gte": start_dt, "$lte": end_dt}
+    }).to_list(1000)
+    
+    # Initialize P&L structure
+    pl_by_location = {}
+    
+    # Add "Unspecified" for transactions without location assignment
+    all_locations = [{"id": None, "name": "Unspecified"}] + locations
+    
+    for location_item in all_locations:
+        location_id = location_item["id"]
+        location_name = location_item["name"]
+        
+        pl_by_location[location_name] = {
+            "location_id": location_id,
+            "location_name": location_name,
+            "income": [],
+            "expenses": [],
+            "total_income": 0,
+            "total_expenses": 0,
+            "net_income": 0
+        }
+    
+    # Process transactions
+    for transaction in transactions:
+        for line_item in transaction.get("line_items", []):
+            location_id = line_item.get("location_id")
+            location_name = next((l["name"] for l in all_locations if l["id"] == location_id), "Unspecified")
+            
+            if line_item.get("account_id"):
+                account = await db.accounts.find_one({"id": line_item["account_id"]})
+                if account:
+                    amount = line_item.get("amount", 0)
+                    
+                    if account["account_type"] == "Income":
+                        pl_by_location[location_name]["income"].append({
+                            "account_name": account["name"],
+                            "amount": amount,
+                            "transaction_id": transaction["id"],
+                            "transaction_type": transaction["transaction_type"],
+                            "date": transaction["date"]
+                        })
+                        pl_by_location[location_name]["total_income"] += amount
+                    
+                    elif account["account_type"] == "Expense":
+                        pl_by_location[location_name]["expenses"].append({
+                            "account_name": account["name"],
+                            "amount": amount,
+                            "transaction_id": transaction["id"],
+                            "transaction_type": transaction["transaction_type"],
+                            "date": transaction["date"]
+                        })
+                        pl_by_location[location_name]["total_expenses"] += amount
+    
+    # Calculate net income for each location
+    for location_name in pl_by_location:
+        pl_by_location[location_name]["net_income"] = (
+            pl_by_location[location_name]["total_income"] - 
+            pl_by_location[location_name]["total_expenses"]
+        )
+    
+    # Calculate totals
+    total_income = sum(data["total_income"] for data in pl_by_location.values())
+    total_expenses = sum(data["total_expenses"] for data in pl_by_location.values())
+    total_net_income = total_income - total_expenses
+    
+    return {
+        "report_period": {
+            "start_date": start_date,
+            "end_date": end_date
+        },
+        "locations": pl_by_location,
+        "totals": {
+            "total_income": total_income,
+            "total_expenses": total_expenses,
+            "net_income": total_net_income
+        }
+    }
+
+# Dashboard Analytics API
+@api_router.get("/analytics/dashboard-metrics")
+async def get_dashboard_metrics():
+    """Get real-time dashboard metrics and KPIs"""
+    today = datetime.utcnow()
+    month_start = today.replace(day=1)
+    last_month_start = (month_start - timedelta(days=1)).replace(day=1)
+    last_month_end = month_start - timedelta(days=1)
+    
+    # Get cash position
+    cash_accounts = await db.accounts.find({
+        "detail_type": {"$in": ["Checking", "Savings"]},
+        "active": True
+    }).to_list(100)
+    
+    total_cash = sum(await calculate_account_balance(account["id"]) for account in cash_accounts)
+    
+    # Get A/R and A/P
+    ar_account = await db.accounts.find_one({"detail_type": "Accounts Receivable"})
+    ap_account = await db.accounts.find_one({"detail_type": "Accounts Payable"})
+    
+    total_ar = await calculate_account_balance(ar_account["id"]) if ar_account else 0
+    total_ap = await calculate_account_balance(ap_account["id"]) if ap_account else 0
+    
+    # Get monthly income and expenses
+    current_month_income = 0
+    current_month_expenses = 0
+    last_month_income = 0
+    last_month_expenses = 0
+    
+    # Current month transactions
+    current_month_transactions = await db.transactions.find({
+        "date": {"$gte": month_start, "$lte": today}
+    }).to_list(1000)
+    
+    for transaction in current_month_transactions:
+        if transaction["transaction_type"] in ["Invoice", "Sales Receipt"]:
+            current_month_income += transaction["total"]
+        elif transaction["transaction_type"] in ["Bill", "Check"]:
+            current_month_expenses += transaction["total"]
+    
+    # Last month transactions
+    last_month_transactions = await db.transactions.find({
+        "date": {"$gte": last_month_start, "$lte": last_month_end}
+    }).to_list(1000)
+    
+    for transaction in last_month_transactions:
+        if transaction["transaction_type"] in ["Invoice", "Sales Receipt"]:
+            last_month_income += transaction["total"]
+        elif transaction["transaction_type"] in ["Bill", "Check"]:
+            last_month_expenses += transaction["total"]
+    
+    # Calculate growth rates
+    income_growth = ((current_month_income - last_month_income) / last_month_income * 100) if last_month_income > 0 else 0
+    expense_growth = ((current_month_expenses - last_month_expenses) / last_month_expenses * 100) if last_month_expenses > 0 else 0
+    
+    # Get overdue invoices
+    overdue_invoices = await db.transactions.find({
+        "transaction_type": "Invoice",
+        "status": "Open",
+        "due_date": {"$lt": today}
+    }).to_list(1000)
+    
+    overdue_amount = sum(inv.get("balance", inv["total"]) for inv in overdue_invoices)
+    
+    # Get recent transactions
+    recent_transactions = await db.transactions.find().sort("created_at", -1).limit(10).to_list(10)
+    
+    return {
+        "financial_metrics": {
+            "total_cash": total_cash,
+            "total_ar": total_ar,
+            "total_ap": total_ap,
+            "working_capital": total_ar - total_ap,
+            "current_month_income": current_month_income,
+            "current_month_expenses": current_month_expenses,
+            "current_month_profit": current_month_income - current_month_expenses,
+            "income_growth_rate": income_growth,
+            "expense_growth_rate": expense_growth
+        },
+        "alerts": {
+            "overdue_invoices_count": len(overdue_invoices),
+            "overdue_amount": overdue_amount,
+            "cash_flow_status": "positive" if total_cash > 0 else "negative",
+            "low_cash_warning": total_cash < 10000  # Configurable threshold
+        },
+        "recent_activity": [
+            {
+                "id": t["id"],
+                "type": t["transaction_type"],
+                "amount": t["total"],
+                "date": t["date"],
+                "description": t.get("memo", ""),
+                "customer": t.get("customer_id", ""),
+                "vendor": t.get("vendor_id", "")
+            } for t in recent_transactions
+        ]
+    }
+
+@api_router.get("/analytics/kpi-trends")
+async def get_kpi_trends(period: str = "12months"):
+    """Get KPI trends over time for dashboard charts"""
+    today = datetime.utcnow()
+    
+    if period == "12months":
+        periods = []
+        for i in range(12):
+            month_start = (today.replace(day=1) - timedelta(days=32*i)).replace(day=1)
+            month_end = month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
+            periods.append({
+                "start": month_start,
+                "end": month_end,
+                "label": month_start.strftime("%b %Y")
+            })
+        periods.reverse()
+    
+    trends = []
+    
+    for period_data in periods:
+        # Get transactions for this period
+        transactions = await db.transactions.find({
+            "date": {"$gte": period_data["start"], "$lte": period_data["end"]}
+        }).to_list(1000)
+        
+        income = sum(t["total"] for t in transactions if t["transaction_type"] in ["Invoice", "Sales Receipt"])
+        expenses = sum(t["total"] for t in transactions if t["transaction_type"] in ["Bill", "Check"])
+        profit = income - expenses
+        
+        trends.append({
+            "period": period_data["label"],
+            "income": income,
+            "expenses": expenses,
+            "profit": profit,
+            "transaction_count": len(transactions)
+        })
+    
+    return {"trends": trends}
+
+@api_router.get("/analytics/drill-down/{metric}")
+async def get_drill_down_data(metric: str, period: str = "current_month"):
+    """Get drill-down data for dashboard metrics"""
+    today = datetime.utcnow()
+    
+    if period == "current_month":
+        start_date = today.replace(day=1)
+        end_date = today
+    elif period == "last_month":
+        start_date = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
+        end_date = today.replace(day=1) - timedelta(days=1)
+    else:
+        # Default to current month
+        start_date = today.replace(day=1)
+        end_date = today
+    
+    if metric == "income":
+        transactions = await db.transactions.find({
+            "transaction_type": {"$in": ["Invoice", "Sales Receipt"]},
+            "date": {"$gte": start_date, "$lte": end_date}
+        }).to_list(1000)
+        
+        return {
+            "metric": "income",
+            "period": period,
+            "total": sum(t["total"] for t in transactions),
+            "transactions": [
+                {
+                    "id": t["id"],
+                    "type": t["transaction_type"],
+                    "amount": t["total"],
+                    "date": t["date"],
+                    "customer_id": t.get("customer_id"),
+                    "reference": t.get("reference_number", "")
+                } for t in transactions
+            ]
+        }
+    
+    elif metric == "expenses":
+        transactions = await db.transactions.find({
+            "transaction_type": {"$in": ["Bill", "Check"]},
+            "date": {"$gte": start_date, "$lte": end_date}
+        }).to_list(1000)
+        
+        return {
+            "metric": "expenses",
+            "period": period,
+            "total": sum(t["total"] for t in transactions),
+            "transactions": [
+                {
+                    "id": t["id"],
+                    "type": t["transaction_type"],
+                    "amount": t["total"],
+                    "date": t["date"],
+                    "vendor_id": t.get("vendor_id"),
+                    "reference": t.get("reference_number", "")
+                } for t in transactions
+            ]
+        }
+    
+    elif metric == "overdue_invoices":
+        overdue_invoices = await db.transactions.find({
+            "transaction_type": "Invoice",
+            "status": "Open",
+            "due_date": {"$lt": today}
+        }).to_list(1000)
+        
+        return {
+            "metric": "overdue_invoices",
+            "period": "current",
+            "total": sum(inv.get("balance", inv["total"]) for inv in overdue_invoices),
+            "count": len(overdue_invoices),
+            "invoices": [
+                {
+                    "id": inv["id"],
+                    "invoice_number": inv.get("transaction_number", ""),
+                    "customer_id": inv.get("customer_id"),
+                    "amount": inv["total"],
+                    "balance": inv.get("balance", inv["total"]),
+                    "due_date": inv.get("due_date"),
+                    "days_overdue": (today - inv.get("due_date", today)).days if inv.get("due_date") else 0
+                } for inv in overdue_invoices
+            ]
+        }
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid metric specified")
+
+
 # Helper functions
 async def calculate_account_balance(account_id: str):
     """Calculate the current balance of an account from journal entries"""
