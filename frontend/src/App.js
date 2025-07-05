@@ -5,6 +5,7 @@ import WelcomeWizard from "./components/WelcomeWizard";
 import ProfessionalLayout from "./components/ProfessionalLayout";
 import CustomerCenter from "./components/CustomerCenter";
 import EnhancedDashboard from "./components/EnhancedDashboard";
+import InteractiveDashboard from "./components/InteractiveDashboard";
 import TransactionForm from "./components/TransactionForm";
 import TransactionFormPage from "./components/TransactionFormPage";
 import BankingCenter from "./components/BankingCenter";
