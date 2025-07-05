@@ -25,6 +25,33 @@
     "dist": "yarn build && electron-builder --publish=never",
     "build-electron": "yarn build && electron-builder --win"
   },
+  "build": {
+    "appId": "com.qbclone.desktop",
+    "productName": "QBClone Accounting",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "public/main.js",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/favicon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "QBClone Accounting"
+    },
+    "extraMetadata": {
+      "main": "public/main.js"
+    }
+  },
   "browserslist": {
     "production": [
       ">0.2%",
