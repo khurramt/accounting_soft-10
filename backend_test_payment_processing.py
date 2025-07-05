@@ -303,17 +303,21 @@ class QBClonePaymentProcessingTest(unittest.TestCase):
             "payment_date": datetime.utcnow().isoformat(),
             "payment_account_id": self.accounts["Checking Account"]["id"],
             "payment_method": "Check",
-            "bill_payments": [
-                {
-                    "bill_id": bill["id"],
-                    "amount": bill["total"]
-                }
-            ],
             "memo": f"Payment to {vendor_name}"
         }
         
+        # Add bill payment as a separate parameter
+        bill_payment = {
+            "bill_id": bill["id"],
+            "amount": bill["total"]
+        }
+        
         # Send bill payment request
-        response = requests.post(f"{BACKEND_URL}/payments/pay-bills", params=bill_payment_data)
+        response = requests.post(
+            f"{BACKEND_URL}/payments/pay-bills", 
+            params=bill_payment_data,
+            json=[bill_payment]
+        )
         self.assertEqual(response.status_code, 200, "Failed to pay bills")
         
         payment_result = response.json()
