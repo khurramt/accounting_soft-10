@@ -521,7 +521,12 @@ async def create_account(account: AccountCreate):
 @api_router.get("/accounts", response_model=List[Account])
 async def get_accounts():
     accounts = await db.accounts.find({"active": True}).to_list(1000)
-    return [Account(**account) for account in accounts]
+    result = []
+    for account in accounts:
+        if "_id" in account:
+            del account["_id"]
+        result.append(Account(**account))
+    return result
 
 @api_router.get("/accounts/{account_id}", response_model=Account)
 async def get_account(account_id: str):
