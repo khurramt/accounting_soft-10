@@ -801,22 +801,23 @@ class QBCloneAdvancedPaymentTest(unittest.TestCase):
         payment_amount = invoice["total"]
         uf_account_id = self.accounts["Undeposited Funds"]["id"]
         
-        payment_data = {
+        # 2. Receive payment for the invoice - convert to query parameters
+        query_params = {
             "customer_id": customer_id,
             "payment_amount": payment_amount,
             "payment_method": "Check",
             "payment_date": datetime.utcnow().isoformat(),
             "deposit_to_account_id": uf_account_id,
-            "invoice_applications": [
-                {
-                    "invoice_id": invoice["id"],
-                    "amount": payment_amount
-                }
-            ],
             "memo": "Payment for additional services"
         }
         
-        response = requests.post(f"{BACKEND_URL}/payments/receive", params=payment_data)
+        # Add invoice applications as separate parameters
+        query_params["invoice_applications[0][invoice_id]"] = invoice["id"]
+        query_params["invoice_applications[0][amount]"] = payment_amount
+        
+        response = requests.post(f"{BACKEND_URL}/payments/receive", params=query_params)
+        self.assertEqual(response.status_code, 200)
+        payment_result = response.json()
         self.assertEqual(response.status_code, 200)
         payment_result = response.json()
         self.payments["workflow_payment"] = payment_result["payment_id"]
