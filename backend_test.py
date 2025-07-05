@@ -1167,5 +1167,249 @@ class QBCloneBackendTest(unittest.TestCase):
         logger.info("All tests completed successfully!")
 
 
+    def test_17_banking_and_reconciliation(self):
+        """Test banking and reconciliation functionality"""
+        logger.info("Testing Banking and Reconciliation...")
+        
+        # Create a checking account for testing if not already created
+        if "Checking Account" not in self.accounts:
+            checking_account_data = {
+                "name": "Checking Account",
+                "account_type": "Asset",
+                "detail_type": "Checking",
+                "account_number": "1000",
+                "opening_balance": 10000.0,
+                "opening_balance_date": datetime.utcnow().isoformat()
+            }
+            response = requests.post(f"{BACKEND_URL}/accounts", json=checking_account_data)
+            self.assertEqual(response.status_code, 200)
+            self.accounts["Checking Account"] = response.json()
+            logger.info(f"Created checking account with ID: {self.accounts['Checking Account']['id']}")
+        
+        # 1. Test Bank Transactions
+        logger.info("Testing Bank Transactions...")
+        
+        # Create bank transactions
+        bank_transaction_data = [
+            {
+                "account_id": self.accounts["Checking Account"]["id"],
+                "date": datetime.utcnow().isoformat(),
+                "description": "Deposit from Customer",
+                "amount": 1500.0,
+                "transaction_type": "Credit",
+                "reference_number": "DEP12345"
+            },
+            {
+                "account_id": self.accounts["Checking Account"]["id"],
+                "date": datetime.utcnow().isoformat(),
+                "description": "Payment to Vendor",
+                "amount": -750.0,
+                "transaction_type": "Debit",
+                "reference_number": "CHK67890",
+                "check_number": "1001"
+            },
+            {
+                "account_id": self.accounts["Checking Account"]["id"],
+                "date": datetime.utcnow().isoformat(),
+                "description": "Monthly Service Fee",
+                "amount": -25.0,
+                "transaction_type": "Debit"
+            }
+        ]
+        
+        bank_transactions = []
+        for transaction in bank_transaction_data:
+            response = requests.post(f"{BACKEND_URL}/bank-transactions", json=transaction)
+            self.assertEqual(response.status_code, 200)
+            bank_transaction = response.json()
+            bank_transactions.append(bank_transaction)
+            logger.info(f"Created bank transaction: {bank_transaction['description']} with ID: {bank_transaction['id']}")
+        
+        # Get all bank transactions
+        response = requests.get(f"{BACKEND_URL}/bank-transactions")
+        self.assertEqual(response.status_code, 200)
+        all_transactions = response.json()
+        self.assertGreaterEqual(len(all_transactions), len(bank_transaction_data))
+        logger.info(f"Retrieved {len(all_transactions)} bank transactions")
+        
+        # Get bank transactions for specific account
+        response = requests.get(f"{BACKEND_URL}/bank-transactions?account_id={self.accounts['Checking Account']['id']}")
+        self.assertEqual(response.status_code, 200)
+        account_transactions = response.json()
+        self.assertGreaterEqual(len(account_transactions), len(bank_transaction_data))
+        logger.info(f"Retrieved {len(account_transactions)} bank transactions for checking account")
+        
+        # 2. Test Reconciliation
+        logger.info("Testing Reconciliation...")
+        
+        # Create a reconciliation
+        reconciliation_data = {
+            "account_id": self.accounts["Checking Account"]["id"],
+            "statement_date": datetime.utcnow().isoformat(),
+            "statement_ending_balance": 10725.0,  # Opening balance + transactions
+            "notes": "Monthly bank statement reconciliation"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/reconciliations", json=reconciliation_data)
+        self.assertEqual(response.status_code, 200)
+        reconciliation = response.json()
+        logger.info(f"Created reconciliation with ID: {reconciliation['id']}")
+        
+        # Get all reconciliations
+        response = requests.get(f"{BACKEND_URL}/reconciliations")
+        self.assertEqual(response.status_code, 200)
+        all_reconciliations = response.json()
+        self.assertGreaterEqual(len(all_reconciliations), 1)
+        logger.info(f"Retrieved {len(all_reconciliations)} reconciliations")
+        
+        # Get reconciliations for specific account
+        response = requests.get(f"{BACKEND_URL}/reconciliations?account_id={self.accounts['Checking Account']['id']}")
+        self.assertEqual(response.status_code, 200)
+        account_reconciliations = response.json()
+        self.assertGreaterEqual(len(account_reconciliations), 1)
+        logger.info(f"Retrieved {len(account_reconciliations)} reconciliations for checking account")
+        
+        # Get specific reconciliation
+        response = requests.get(f"{BACKEND_URL}/reconciliations/{reconciliation['id']}")
+        self.assertEqual(response.status_code, 200)
+        retrieved_reconciliation = response.json()
+        self.assertEqual(retrieved_reconciliation["id"], reconciliation["id"])
+        logger.info(f"Retrieved reconciliation: {retrieved_reconciliation['id']}")
+        
+        # Update reconciliation
+        update_data = {
+            "notes": "Updated reconciliation notes"
+        }
+        response = requests.put(f"{BACKEND_URL}/reconciliations/{reconciliation['id']}", json=update_data)
+        self.assertEqual(response.status_code, 200)
+        updated_reconciliation = response.json()
+        self.assertEqual(updated_reconciliation["notes"], update_data["notes"])
+        logger.info(f"Updated reconciliation: {updated_reconciliation['id']}")
+        
+        # Mark transactions as reconciled
+        for transaction in bank_transactions:
+            response = requests.put(
+                f"{BACKEND_URL}/bank-transactions/{transaction['id']}/reconcile",
+                params={"reconciliation_id": reconciliation["id"]}
+            )
+            self.assertEqual(response.status_code, 200)
+            logger.info(f"Marked transaction {transaction['id']} as reconciled")
+        
+        # Complete reconciliation
+        response = requests.post(f"{BACKEND_URL}/reconciliations/{reconciliation['id']}/complete")
+        self.assertEqual(response.status_code, 200)
+        completion_result = response.json()
+        self.assertIn("message", completion_result)
+        self.assertIn("status", completion_result)
+        logger.info(f"Completed reconciliation with status: {completion_result['status']}")
+        
+        # 3. Test Bank Import
+        logger.info("Testing Bank Import...")
+        
+        # Create sample CSV content
+        csv_content = """Date,Description,Amount,Reference,Check Number
+2023-05-01,Deposit from Client,1250.00,DEP123,
+2023-05-02,Office Supplies,-89.99,POS456,
+2023-05-03,Client Payment,750.50,DEP789,
+2023-05-04,Utility Bill,-125.75,ACH012,
+2023-05-05,Check Payment,-500.00,CHK345,1002
+"""
+        
+        # Create a temporary CSV file
+        with open("/tmp/bank_statement.csv", "w") as f:
+            f.write(csv_content)
+        
+        # Test CSV import
+        with open("/tmp/bank_statement.csv", "rb") as f:
+            files = {"file": ("bank_statement.csv", f, "text/csv")}
+            response = requests.post(
+                f"{BACKEND_URL}/bank-import/csv/{self.accounts['Checking Account']['id']}",
+                files=files
+            )
+            self.assertEqual(response.status_code, 200)
+            csv_import_result = response.json()
+            self.assertEqual(csv_import_result["total_transactions"], 5)
+            logger.info(f"CSV import preview: {csv_import_result['total_transactions']} transactions")
+        
+        # Create sample QFX content (simplified)
+        qfx_content = """OFXHEADER:100
+DATA:OFXSGML
+<OFX>
+<BANKMSGSRSV1>
+<STMTTRNRS>
+<STMTRS>
+<BANKTRANLIST>
+<STMTTRN>
+<TRNTYPE>CREDIT
+<DTPOSTED>20230601
+<TRNAMT>1500.00
+<FITID>123456
+<NAME>Deposit
+<MEMO>Client Deposit
+</STMTTRN>
+<STMTTRN>
+<TRNTYPE>DEBIT
+<DTPOSTED>20230602
+<TRNAMT>-250.00
+<FITID>789012
+<NAME>Withdrawal
+<MEMO>ATM Withdrawal
+</STMTTRN>
+<STMTTRN>
+<TRNTYPE>DEBIT
+<DTPOSTED>20230603
+<TRNAMT>-75.50
+<CHECKNUM>1003
+<FITID>345678
+<NAME>Check Payment
+<MEMO>Office Supplies
+</STMTTRN>
+</BANKTRANLIST>
+</STMTRS>
+</STMTTRNRS>
+</BANKMSGSRSV1>
+</OFX>"""
+        
+        # Create a temporary QFX file
+        with open("/tmp/bank_statement.qfx", "w") as f:
+            f.write(qfx_content)
+        
+        # Test QFX import
+        with open("/tmp/bank_statement.qfx", "rb") as f:
+            files = {"file": ("bank_statement.qfx", f, "application/x-ofx")}
+            response = requests.post(
+                f"{BACKEND_URL}/bank-import/qfx/{self.accounts['Checking Account']['id']}",
+                files=files
+            )
+            self.assertEqual(response.status_code, 200)
+            qfx_import_result = response.json()
+            self.assertEqual(qfx_import_result["total_transactions"], 3)
+            logger.info(f"QFX import preview: {qfx_import_result['total_transactions']} transactions")
+        
+        # Test import confirmation
+        # Use the transactions from the CSV import preview
+        if csv_import_result["preview_transactions"]:
+            response = requests.post(
+                f"{BACKEND_URL}/bank-import/confirm/{self.accounts['Checking Account']['id']}",
+                json=csv_import_result["preview_transactions"]
+            )
+            self.assertEqual(response.status_code, 200)
+            confirm_result = response.json()
+            self.assertIn("imported_transactions", confirm_result)
+            logger.info(f"Confirmed import of {confirm_result['imported_transactions']} transactions")
+        
+        # 4. Test Reconciliation Reports
+        logger.info("Testing Reconciliation Reports...")
+        
+        response = requests.get(f"{BACKEND_URL}/reports/reconciliation/{self.accounts['Checking Account']['id']}")
+        self.assertEqual(response.status_code, 200)
+        report = response.json()
+        self.assertIn("account", report)
+        self.assertIn("reconciliations", report)
+        self.assertIn("summary", report)
+        logger.info(f"Retrieved reconciliation report with {len(report['reconciliations'])} reconciliations")
+        
+        logger.info("Banking and Reconciliation tests passed")
+
 if __name__ == "__main__":
     unittest.main()
