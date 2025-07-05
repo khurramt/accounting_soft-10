@@ -2560,12 +2560,6 @@ const EstimatesPage = ({ transactions, customers, items, accounts, onRefresh }) 
   </div>
 );
 
-const ReceivePaymentsPage = ({ customers, transactions, accounts, onRefresh }) => (
-  <div>
-    <h2 className="text-2xl font-bold text-gray-900 mb-6">Receive Payments</h2>
-    <p className="text-gray-600">Payment processing functionality coming soon...</p>
-  </div>
-);
 
 // Bills Page Component (Full Implementation)
 const BillsPage = ({ transactions, vendors, items, accounts, onRefresh }) => {
