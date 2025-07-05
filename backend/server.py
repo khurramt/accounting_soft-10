@@ -3630,6 +3630,746 @@ async def setup_default_permissions():
     
     return {"message": "Default permissions and roles created successfully"}
 
+# Phase 5: Advanced Business Logic API Endpoints
+
+# Inventory Management Endpoints
+
+# Helper functions for inventory costing
+async def calculate_inventory_cost(item_id: str, quantity: float, costing_method: CostingMethod) -> float:
+    """Calculate cost based on the costing method (FIFO, LIFO, or Average)"""
+    if costing_method == CostingMethod.AVERAGE:
+        # Use average cost
+        item = await db.items.find_one({"id": item_id})
+        if item and item.get("average_cost"):
+            return item["average_cost"] * quantity
+        else:
+            return item.get("cost", 0.0) * quantity if item else 0.0
+    
+    elif costing_method == CostingMethod.FIFO:
+        # First In, First Out - get oldest inventory transactions
+        transactions = await db.inventory_transactions.find(
+            {"item_id": item_id, "transaction_type": "purchase"}
+        ).sort("transaction_date", 1).to_list(None)
+        
+        remaining_qty = quantity
+        total_cost = 0.0
+        
+        for transaction in transactions:
+            if remaining_qty <= 0:
+                break
+            
+            available_qty = min(remaining_qty, transaction["quantity"])
+            total_cost += available_qty * transaction["unit_cost"]
+            remaining_qty -= available_qty
+        
+        return total_cost
+    
+    elif costing_method == CostingMethod.LIFO:
+        # Last In, First Out - get newest inventory transactions
+        transactions = await db.inventory_transactions.find(
+            {"item_id": item_id, "transaction_type": "purchase"}
+        ).sort("transaction_date", -1).to_list(None)
+        
+        remaining_qty = quantity
+        total_cost = 0.0
+        
+        for transaction in transactions:
+            if remaining_qty <= 0:
+                break
+            
+            available_qty = min(remaining_qty, transaction["quantity"])
+            total_cost += available_qty * transaction["unit_cost"]
+            remaining_qty -= available_qty
+        
+        return total_cost
+    
+    return 0.0
+
+async def update_average_cost(item_id: str):
+    """Update the average cost for an item based on all purchase transactions"""
+    transactions = await db.inventory_transactions.find(
+        {"item_id": item_id, "transaction_type": "purchase"}
+    ).to_list(None)
+    
+    if not transactions:
+        return
+    
+    total_cost = sum(t["total_cost"] for t in transactions)
+    total_quantity = sum(t["quantity"] for t in transactions)
+    
+    if total_quantity > 0:
+        average_cost = total_cost / total_quantity
+        await db.items.update_one(
+            {"id": item_id},
+            {"$set": {"average_cost": average_cost}}
+        )
+
+async def check_reorder_alerts(item_id: str):
+    """Check if item needs reorder alert"""
+    item = await db.items.find_one({"id": item_id})
+    if not item or not item.get("reorder_point"):
+        return
+    
+    if item["qty_on_hand"] <= item["reorder_point"]:
+        # Create or update reorder alert
+        existing_alert = await db.inventory_alerts.find_one({
+            "item_id": item_id,
+            "alert_type": "reorder",
+            "is_active": True
+        })
+        
+        if not existing_alert:
+            alert = InventoryAlert(
+                item_id=item_id,
+                alert_type="reorder",
+                current_quantity=item["qty_on_hand"],
+                reorder_point=item["reorder_point"]
+            )
+            await db.inventory_alerts.insert_one(alert.dict())
+
+# Inventory Transactions
+@api_router.post("/inventory-transactions", response_model=InventoryTransaction)
+async def create_inventory_transaction(transaction: InventoryTransactionCreate):
+    """Create a new inventory transaction"""
+    # Get current item information
+    item = await db.items.find_one({"id": transaction.item_id})
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    # Calculate total cost
+    total_cost = transaction.quantity * transaction.unit_cost
+    
+    # Create transaction
+    transaction_dict = transaction.dict()
+    transaction_dict["total_cost"] = total_cost
+    transaction_obj = InventoryTransaction(**transaction_dict)
+    
+    # Insert transaction
+    await db.inventory_transactions.insert_one(transaction_obj.dict())
+    
+    # Update item quantity
+    if transaction.transaction_type == "purchase":
+        new_qty = item["qty_on_hand"] + transaction.quantity
+    elif transaction.transaction_type == "sale":
+        new_qty = max(0, item["qty_on_hand"] - transaction.quantity)
+    else:  # adjustment
+        new_qty = item["qty_on_hand"] + transaction.quantity  # Can be negative for adjustments
+    
+    await db.items.update_one(
+        {"id": transaction.item_id},
+        {"$set": {"qty_on_hand": new_qty, "last_cost": transaction.unit_cost}}
+    )
+    
+    # Update average cost
+    await update_average_cost(transaction.item_id)
+    
+    # Check for reorder alerts
+    await check_reorder_alerts(transaction.item_id)
+    
+    return transaction_obj
+
+@api_router.get("/inventory-transactions", response_model=List[InventoryTransaction])
+async def get_inventory_transactions(
+    item_id: Optional[str] = None,
+    transaction_type: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """Get inventory transactions with optional filters"""
+    filters = {}
+    
+    if item_id:
+        filters["item_id"] = item_id
+    if transaction_type:
+        filters["transaction_type"] = transaction_type
+    if start_date:
+        filters["transaction_date"] = {"$gte": datetime.fromisoformat(start_date)}
+    if end_date:
+        if "transaction_date" in filters:
+            filters["transaction_date"]["$lte"] = datetime.fromisoformat(end_date)
+        else:
+            filters["transaction_date"] = {"$lte": datetime.fromisoformat(end_date)}
+    
+    transactions = await db.inventory_transactions.find(filters).sort("transaction_date", -1).to_list(None)
+    return [InventoryTransaction(**transaction) for transaction in transactions]
+
+# Inventory Adjustments
+@api_router.post("/inventory-adjustments", response_model=InventoryAdjustment)
+async def create_inventory_adjustment(adjustment: InventoryAdjustmentCreate):
+    """Create a new inventory adjustment"""
+    # Get current item information
+    item = await db.items.find_one({"id": adjustment.item_id})
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    # Calculate adjustment values
+    quantity_before = item["qty_on_hand"]
+    quantity_change = adjustment.quantity_after - quantity_before
+    total_cost_impact = quantity_change * adjustment.unit_cost
+    
+    # Create adjustment record
+    adjustment_dict = adjustment.dict()
+    adjustment_dict.update({
+        "quantity_before": quantity_before,
+        "quantity_change": quantity_change,
+        "total_cost_impact": total_cost_impact
+    })
+    adjustment_obj = InventoryAdjustment(**adjustment_dict)
+    
+    # Insert adjustment
+    await db.inventory_adjustments.insert_one(adjustment_obj.dict())
+    
+    # Update item quantity
+    await db.items.update_one(
+        {"id": adjustment.item_id},
+        {"$set": {"qty_on_hand": adjustment.quantity_after}}
+    )
+    
+    # Create corresponding inventory transaction
+    transaction = InventoryTransaction(
+        item_id=adjustment.item_id,
+        transaction_type="adjustment",
+        quantity=quantity_change,
+        unit_cost=adjustment.unit_cost,
+        total_cost=total_cost_impact,
+        transaction_date=adjustment.adjustment_date,
+        notes=f"Adjustment: {adjustment.reason}"
+    )
+    await db.inventory_transactions.insert_one(transaction.dict())
+    
+    # Update average cost
+    await update_average_cost(adjustment.item_id)
+    
+    # Check for reorder alerts
+    await check_reorder_alerts(adjustment.item_id)
+    
+    return adjustment_obj
+
+@api_router.get("/inventory-adjustments", response_model=List[InventoryAdjustment])
+async def get_inventory_adjustments(
+    item_id: Optional[str] = None,
+    adjustment_type: Optional[InventoryAdjustmentType] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """Get inventory adjustments with optional filters"""
+    filters = {}
+    
+    if item_id:
+        filters["item_id"] = item_id
+    if adjustment_type:
+        filters["adjustment_type"] = adjustment_type
+    if start_date:
+        filters["adjustment_date"] = {"$gte": datetime.fromisoformat(start_date)}
+    if end_date:
+        if "adjustment_date" in filters:
+            filters["adjustment_date"]["$lte"] = datetime.fromisoformat(end_date)
+        else:
+            filters["adjustment_date"] = {"$lte": datetime.fromisoformat(end_date)}
+    
+    adjustments = await db.inventory_adjustments.find(filters).sort("adjustment_date", -1).to_list(None)
+    return [InventoryAdjustment(**adjustment) for adjustment in adjustments]
+
+# Inventory Alerts
+@api_router.get("/inventory-alerts", response_model=List[InventoryAlert])
+async def get_inventory_alerts(is_active: bool = True):
+    """Get inventory alerts"""
+    filters = {"is_active": is_active} if is_active else {}
+    alerts = await db.inventory_alerts.find(filters).sort("created_at", -1).to_list(None)
+    return [InventoryAlert(**alert) for alert in alerts]
+
+@api_router.put("/inventory-alerts/{alert_id}/acknowledge")
+async def acknowledge_inventory_alert(alert_id: str, user_id: str):
+    """Acknowledge an inventory alert"""
+    result = await db.inventory_alerts.update_one(
+        {"id": alert_id},
+        {
+            "$set": {
+                "is_active": False,
+                "acknowledged_at": datetime.utcnow(),
+                "acknowledged_by": user_id
+            }
+        }
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    return {"message": "Alert acknowledged successfully"}
+
+# Inventory Valuation Report
+@api_router.get("/reports/inventory-valuation")
+async def get_inventory_valuation_report():
+    """Get inventory valuation report with different costing methods"""
+    items = await db.items.find({"item_type": "Inventory", "active": True}).to_list(None)
+    
+    report_data = []
+    for item in items:
+        if item["qty_on_hand"] > 0:
+            # Calculate cost using different methods
+            fifo_cost = await calculate_inventory_cost(item["id"], item["qty_on_hand"], CostingMethod.FIFO)
+            lifo_cost = await calculate_inventory_cost(item["id"], item["qty_on_hand"], CostingMethod.LIFO)
+            average_cost = await calculate_inventory_cost(item["id"], item["qty_on_hand"], CostingMethod.AVERAGE)
+            
+            report_data.append({
+                "item_id": item["id"],
+                "item_name": item["name"],
+                "quantity": item["qty_on_hand"],
+                "fifo_cost": fifo_cost,
+                "lifo_cost": lifo_cost,
+                "average_cost": average_cost,
+                "current_method": item.get("costing_method", "FIFO"),
+                "current_value": fifo_cost if item.get("costing_method", "FIFO") == "FIFO" else 
+                              lifo_cost if item.get("costing_method", "FIFO") == "LIFO" else average_cost
+            })
+    
+    total_fifo = sum(item["fifo_cost"] for item in report_data)
+    total_lifo = sum(item["lifo_cost"] for item in report_data)
+    total_average = sum(item["average_cost"] for item in report_data)
+    
+    return {
+        "items": report_data,
+        "summary": {
+            "total_fifo": total_fifo,
+            "total_lifo": total_lifo,
+            "total_average": total_average,
+            "total_items": len(report_data)
+        }
+    }
+
+# Payroll & HR Endpoints
+
+# Helper functions for payroll calculations
+def calculate_federal_income_tax(gross_pay: float, filing_status: str = "single") -> float:
+    """Calculate federal income tax (simplified calculation)"""
+    # Simplified tax brackets for 2024 (single filer)
+    if gross_pay <= 11000:
+        return gross_pay * 0.10
+    elif gross_pay <= 44725:
+        return 1100 + (gross_pay - 11000) * 0.12
+    elif gross_pay <= 95375:
+        return 5147 + (gross_pay - 44725) * 0.22
+    elif gross_pay <= 182050:
+        return 16290 + (gross_pay - 95375) * 0.24
+    else:
+        return 37104 + (gross_pay - 182050) * 0.32
+
+def calculate_social_security_tax(gross_pay: float) -> float:
+    """Calculate Social Security tax (6.2% up to wage base)"""
+    ss_wage_base = 160200  # 2024 wage base
+    return min(gross_pay, ss_wage_base) * 0.062
+
+def calculate_medicare_tax(gross_pay: float) -> float:
+    """Calculate Medicare tax (1.45% on all wages)"""
+    return gross_pay * 0.0145
+
+def calculate_state_income_tax(gross_pay: float, state: str = "CA") -> float:
+    """Calculate state income tax (simplified - using CA rates)"""
+    # Simplified CA tax brackets
+    if state.upper() == "CA":
+        if gross_pay <= 9330:
+            return gross_pay * 0.01
+        elif gross_pay <= 22107:
+            return 93.30 + (gross_pay - 9330) * 0.02
+        elif gross_pay <= 34892:
+            return 348.84 + (gross_pay - 22107) * 0.04
+        else:
+            return 860.24 + (gross_pay - 34892) * 0.06
+    return 0.0  # No state tax for other states in this example
+
+# Pay Periods
+@api_router.post("/pay-periods", response_model=PayPeriod)
+async def create_pay_period(period: PayPeriodCreate):
+    """Create a new pay period"""
+    period_obj = PayPeriod(**period.dict())
+    await db.pay_periods.insert_one(period_obj.dict())
+    return period_obj
+
+@api_router.get("/pay-periods", response_model=List[PayPeriod])
+async def get_pay_periods(is_closed: Optional[bool] = None):
+    """Get pay periods"""
+    filters = {}
+    if is_closed is not None:
+        filters["is_closed"] = is_closed
+    
+    periods = await db.pay_periods.find(filters).sort("start_date", -1).to_list(None)
+    return [PayPeriod(**period) for period in periods]
+
+@api_router.get("/pay-periods/{period_id}", response_model=PayPeriod)
+async def get_pay_period(period_id: str):
+    """Get a specific pay period"""
+    period = await db.pay_periods.find_one({"id": period_id})
+    if not period:
+        raise HTTPException(status_code=404, detail="Pay period not found")
+    return PayPeriod(**period)
+
+@api_router.put("/pay-periods/{period_id}/close")
+async def close_pay_period(period_id: str):
+    """Close a pay period"""
+    result = await db.pay_periods.update_one(
+        {"id": period_id},
+        {"$set": {"is_closed": True}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Pay period not found")
+    
+    return {"message": "Pay period closed successfully"}
+
+# Time Entries
+@api_router.post("/time-entries", response_model=TimeEntry)
+async def create_time_entry(entry: TimeEntryCreate):
+    """Create a new time entry"""
+    entry_dict = entry.dict()
+    
+    # Calculate total hours if clock_out is provided
+    if entry.clock_out:
+        clock_in = entry.clock_in
+        clock_out = entry.clock_out
+        total_minutes = (clock_out - clock_in).total_seconds() / 60
+        total_hours = max(0, (total_minutes - entry.break_minutes) / 60)
+        
+        # Calculate regular and overtime hours (assuming 8 hours = regular)
+        regular_hours = min(total_hours, 8)
+        overtime_hours = max(0, total_hours - 8)
+        
+        entry_dict.update({
+            "total_hours": total_hours,
+            "regular_hours": regular_hours,
+            "overtime_hours": overtime_hours
+        })
+    
+    entry_obj = TimeEntry(**entry_dict)
+    await db.time_entries.insert_one(entry_obj.dict())
+    return entry_obj
+
+@api_router.get("/time-entries", response_model=List[TimeEntry])
+async def get_time_entries(
+    employee_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[TimeEntryStatus] = None
+):
+    """Get time entries with optional filters"""
+    filters = {}
+    
+    if employee_id:
+        filters["employee_id"] = employee_id
+    if status:
+        filters["status"] = status
+    if start_date:
+        filters["date"] = {"$gte": datetime.fromisoformat(start_date)}
+    if end_date:
+        if "date" in filters:
+            filters["date"]["$lte"] = datetime.fromisoformat(end_date)
+        else:
+            filters["date"] = {"$lte": datetime.fromisoformat(end_date)}
+    
+    entries = await db.time_entries.find(filters).sort("date", -1).to_list(None)
+    return [TimeEntry(**entry) for entry in entries]
+
+@api_router.put("/time-entries/{entry_id}")
+async def update_time_entry(entry_id: str, entry: TimeEntryCreate):
+    """Update a time entry"""
+    entry_dict = entry.dict()
+    
+    # Calculate total hours if clock_out is provided
+    if entry.clock_out:
+        clock_in = entry.clock_in
+        clock_out = entry.clock_out
+        total_minutes = (clock_out - clock_in).total_seconds() / 60
+        total_hours = max(0, (total_minutes - entry.break_minutes) / 60)
+        
+        # Calculate regular and overtime hours
+        regular_hours = min(total_hours, 8)
+        overtime_hours = max(0, total_hours - 8)
+        
+        entry_dict.update({
+            "total_hours": total_hours,
+            "regular_hours": regular_hours,
+            "overtime_hours": overtime_hours
+        })
+    
+    result = await db.time_entries.update_one(
+        {"id": entry_id},
+        {"$set": entry_dict}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Time entry not found")
+    
+    return {"message": "Time entry updated successfully"}
+
+@api_router.put("/time-entries/{entry_id}/approve")
+async def approve_time_entry(entry_id: str, approver_id: str):
+    """Approve a time entry"""
+    result = await db.time_entries.update_one(
+        {"id": entry_id},
+        {
+            "$set": {
+                "status": TimeEntryStatus.APPROVED,
+                "approved_by": approver_id,
+                "approved_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Time entry not found")
+    
+    return {"message": "Time entry approved successfully"}
+
+# Payroll Processing
+@api_router.post("/payroll-items", response_model=PayrollItem)
+async def create_payroll_item(payroll: PayrollItemCreate):
+    """Create a new payroll item"""
+    # Get employee information
+    employee = await db.employees.find_one({"id": payroll.employee_id})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    
+    # Calculate gross pay
+    regular_rate = employee.get("pay_rate", 0.0)
+    overtime_rate = regular_rate * 1.5  # Time and a half
+    gross_pay = (payroll.regular_hours * regular_rate) + (payroll.overtime_hours * overtime_rate)
+    
+    # Calculate taxes and deductions
+    federal_tax = calculate_federal_income_tax(gross_pay)
+    state_tax = calculate_state_income_tax(gross_pay, employee.get("state", "CA"))
+    ss_tax = calculate_social_security_tax(gross_pay)
+    medicare_tax = calculate_medicare_tax(gross_pay)
+    
+    total_deductions = federal_tax + state_tax + ss_tax + medicare_tax
+    net_pay = gross_pay - total_deductions
+    
+    # Create payroll item
+    payroll_dict = payroll.dict()
+    payroll_dict.update({
+        "regular_rate": regular_rate,
+        "overtime_rate": overtime_rate,
+        "gross_pay": gross_pay,
+        "federal_income_tax": federal_tax,
+        "state_income_tax": state_tax,
+        "social_security_tax": ss_tax,
+        "medicare_tax": medicare_tax,
+        "total_deductions": total_deductions,
+        "net_pay": net_pay
+    })
+    
+    payroll_obj = PayrollItem(**payroll_dict)
+    await db.payroll_items.insert_one(payroll_obj.dict())
+    
+    return payroll_obj
+
+@api_router.get("/payroll-items", response_model=List[PayrollItem])
+async def get_payroll_items(
+    employee_id: Optional[str] = None,
+    pay_period_id: Optional[str] = None,
+    status: Optional[PayrollStatus] = None
+):
+    """Get payroll items with optional filters"""
+    filters = {}
+    
+    if employee_id:
+        filters["employee_id"] = employee_id
+    if pay_period_id:
+        filters["pay_period_id"] = pay_period_id
+    if status:
+        filters["status"] = status
+    
+    payroll_items = await db.payroll_items.find(filters).sort("created_at", -1).to_list(None)
+    return [PayrollItem(**item) for item in payroll_items]
+
+@api_router.put("/payroll-items/{payroll_id}/process")
+async def process_payroll_item(payroll_id: str):
+    """Process a payroll item"""
+    result = await db.payroll_items.update_one(
+        {"id": payroll_id},
+        {
+            "$set": {
+                "status": PayrollStatus.PROCESSED,
+                "processed_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Payroll item not found")
+    
+    return {"message": "Payroll item processed successfully"}
+
+# Pay Stubs
+@api_router.post("/pay-stubs", response_model=PayStub)
+async def create_pay_stub(payroll_item_id: str):
+    """Create a pay stub for a payroll item"""
+    # Get payroll item
+    payroll_item = await db.payroll_items.find_one({"id": payroll_item_id})
+    if not payroll_item:
+        raise HTTPException(status_code=404, detail="Payroll item not found")
+    
+    # Get pay period
+    pay_period = await db.pay_periods.find_one({"id": payroll_item["pay_period_id"]})
+    if not pay_period:
+        raise HTTPException(status_code=404, detail="Pay period not found")
+    
+    # Calculate year-to-date totals
+    ytd_payroll = await db.payroll_items.find({
+        "employee_id": payroll_item["employee_id"],
+        "status": PayrollStatus.PROCESSED,
+        "processed_at": {"$gte": datetime(datetime.now().year, 1, 1)}
+    }).to_list(None)
+    
+    ytd_gross = sum(item["gross_pay"] for item in ytd_payroll)
+    ytd_deductions = sum(item["total_deductions"] for item in ytd_payroll)
+    ytd_net = sum(item["net_pay"] for item in ytd_payroll)
+    
+    # Create earnings and deductions breakdown
+    earnings = [
+        {
+            "type": "Regular",
+            "hours": payroll_item["regular_hours"],
+            "rate": payroll_item["regular_rate"],
+            "amount": payroll_item["regular_hours"] * payroll_item["regular_rate"]
+        }
+    ]
+    
+    if payroll_item["overtime_hours"] > 0:
+        earnings.append({
+            "type": "Overtime",
+            "hours": payroll_item["overtime_hours"],
+            "rate": payroll_item["overtime_rate"],
+            "amount": payroll_item["overtime_hours"] * payroll_item["overtime_rate"]
+        })
+    
+    deductions = [
+        {"type": "Federal Income Tax", "amount": payroll_item["federal_income_tax"]},
+        {"type": "State Income Tax", "amount": payroll_item["state_income_tax"]},
+        {"type": "Social Security", "amount": payroll_item["social_security_tax"]},
+        {"type": "Medicare", "amount": payroll_item["medicare_tax"]}
+    ]
+    
+    # Create pay stub
+    pay_stub = PayStub(
+        payroll_item_id=payroll_item_id,
+        employee_id=payroll_item["employee_id"],
+        pay_period_id=payroll_item["pay_period_id"],
+        pay_date=pay_period["pay_date"],
+        earnings=earnings,
+        deductions=deductions,
+        gross_pay=payroll_item["gross_pay"],
+        total_deductions=payroll_item["total_deductions"],
+        net_pay=payroll_item["net_pay"],
+        year_to_date_gross=ytd_gross,
+        year_to_date_deductions=ytd_deductions,
+        year_to_date_net=ytd_net
+    )
+    
+    await db.pay_stubs.insert_one(pay_stub.dict())
+    return pay_stub
+
+@api_router.get("/pay-stubs", response_model=List[PayStub])
+async def get_pay_stubs(
+    employee_id: Optional[str] = None,
+    pay_period_id: Optional[str] = None
+):
+    """Get pay stubs with optional filters"""
+    filters = {}
+    
+    if employee_id:
+        filters["employee_id"] = employee_id
+    if pay_period_id:
+        filters["pay_period_id"] = pay_period_id
+    
+    pay_stubs = await db.pay_stubs.find(filters).sort("pay_date", -1).to_list(None)
+    return [PayStub(**stub) for stub in pay_stubs]
+
+@api_router.get("/pay-stubs/{stub_id}", response_model=PayStub)
+async def get_pay_stub(stub_id: str):
+    """Get a specific pay stub"""
+    stub = await db.pay_stubs.find_one({"id": stub_id})
+    if not stub:
+        raise HTTPException(status_code=404, detail="Pay stub not found")
+    return PayStub(**stub)
+
+# Tax Rates Management
+@api_router.post("/tax-rates", response_model=TaxRate)
+async def create_tax_rate(rate: TaxRateCreate):
+    """Create a new tax rate"""
+    rate_obj = TaxRate(**rate.dict())
+    await db.tax_rates.insert_one(rate_obj.dict())
+    return rate_obj
+
+@api_router.get("/tax-rates", response_model=List[TaxRate])
+async def get_tax_rates(
+    tax_type: Optional[TaxType] = None,
+    state: Optional[str] = None
+):
+    """Get tax rates with optional filters"""
+    filters = {}
+    
+    if tax_type:
+        filters["tax_type"] = tax_type
+    if state:
+        filters["state"] = state
+    
+    rates = await db.tax_rates.find(filters).sort("effective_date", -1).to_list(None)
+    return [TaxRate(**rate) for rate in rates]
+
+# Payroll Reports
+@api_router.get("/reports/payroll-summary")
+async def get_payroll_summary_report(
+    start_date: str,
+    end_date: str,
+    employee_id: Optional[str] = None
+):
+    """Get payroll summary report"""
+    filters = {
+        "status": PayrollStatus.PROCESSED,
+        "processed_at": {
+            "$gte": datetime.fromisoformat(start_date),
+            "$lte": datetime.fromisoformat(end_date)
+        }
+    }
+    
+    if employee_id:
+        filters["employee_id"] = employee_id
+    
+    payroll_items = await db.payroll_items.find(filters).to_list(None)
+    
+    # Calculate totals
+    total_gross = sum(item["gross_pay"] for item in payroll_items)
+    total_deductions = sum(item["total_deductions"] for item in payroll_items)
+    total_net = sum(item["net_pay"] for item in payroll_items)
+    
+    # Group by employee
+    employee_summary = {}
+    for item in payroll_items:
+        emp_id = item["employee_id"]
+        if emp_id not in employee_summary:
+            employee_summary[emp_id] = {
+                "employee_id": emp_id,
+                "gross_pay": 0.0,
+                "total_deductions": 0.0,
+                "net_pay": 0.0,
+                "pay_periods": 0
+            }
+        
+        employee_summary[emp_id]["gross_pay"] += item["gross_pay"]
+        employee_summary[emp_id]["total_deductions"] += item["total_deductions"]
+        employee_summary[emp_id]["net_pay"] += item["net_pay"]
+        employee_summary[emp_id]["pay_periods"] += 1
+    
+    return {
+        "summary": {
+            "total_gross": total_gross,
+            "total_deductions": total_deductions,
+            "total_net": total_net,
+            "total_employees": len(employee_summary),
+            "total_pay_periods": len(payroll_items)
+        },
+        "employees": list(employee_summary.values())
+    }
+
 # Add the router to the app
 app.include_router(api_router)
 
