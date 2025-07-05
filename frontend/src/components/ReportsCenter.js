@@ -483,6 +483,21 @@ const ReportsCenter = () => {
 
             {/* Report Data */}
             <div className="flex-1 overflow-y-auto p-6">
+              {drillDownMode && (
+                <div className="mb-4">
+                  <button
+                    onClick={() => {
+                      setDrillDownMode(false);
+                      setReportData(null);
+                    }}
+                    className="flex items-center space-x-2 text-blue-600 hover:text-blue-800"
+                  >
+                    <span>←</span>
+                    <span>Back to Report</span>
+                  </button>
+                </div>
+              )}
+
               {loading ? (
                 <div className="flex items-center justify-center h-64">
                   <div className="text-center">
@@ -492,7 +507,7 @@ const ReportsCenter = () => {
                 </div>
               ) : reportData ? (
                 <div className="space-y-6">
-                  {/* Report content based on type */}
+                  {/* Trial Balance Report */}
                   {selectedReport.id === 'trial-balance' && reportData.trial_balance && (
                     <div>
                       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -558,8 +573,348 @@ const ReportsCenter = () => {
                     </div>
                   )}
 
-                  {/* Other report types would be implemented similarly */}
-                  {selectedReport.id !== 'trial-balance' && (
+                  {/* Balance Sheet Report */}
+                  {selectedReport.id === 'balance-sheet' && reportData.assets && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Assets */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-6">
+                          <h4 className="text-lg font-semibold text-gray-900 mb-4">Assets</h4>
+                          <div className="space-y-2">
+                            {reportData.assets.map((asset, index) => (
+                              <div key={index} className="flex justify-between">
+                                <span className="text-gray-700">{asset.name}</span>
+                                <span className="font-medium">${asset.balance.toLocaleString()}</span>
+                              </div>
+                            ))}
+                            <div className="border-t pt-2 flex justify-between font-semibold">
+                              <span>Total Assets</span>
+                              <span>${reportData.total_assets.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Liabilities & Equity */}
+                        <div className="space-y-6">
+                          <div className="bg-white border border-gray-200 rounded-lg p-6">
+                            <h4 className="text-lg font-semibold text-gray-900 mb-4">Liabilities</h4>
+                            <div className="space-y-2">
+                              {reportData.liabilities.map((liability, index) => (
+                                <div key={index} className="flex justify-between">
+                                  <span className="text-gray-700">{liability.name}</span>
+                                  <span className="font-medium">${liability.balance.toLocaleString()}</span>
+                                </div>
+                              ))}
+                              <div className="border-t pt-2 flex justify-between font-semibold">
+                                <span>Total Liabilities</span>
+                                <span>${reportData.total_liabilities.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-white border border-gray-200 rounded-lg p-6">
+                            <h4 className="text-lg font-semibold text-gray-900 mb-4">Equity</h4>
+                            <div className="space-y-2">
+                              {reportData.equity.map((equity, index) => (
+                                <div key={index} className="flex justify-between">
+                                  <span className="text-gray-700">{equity.name}</span>
+                                  <span className="font-medium">${equity.balance.toLocaleString()}</span>
+                                </div>
+                              ))}
+                              <div className="border-t pt-2 flex justify-between font-semibold">
+                                <span>Total Equity</span>
+                                <span>${reportData.total_equity.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Income Statement Report */}
+                  {selectedReport.id === 'income-statement' && reportData.income && (
+                    <div className="space-y-6">
+                      <div className="bg-white border border-gray-200 rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Income</h4>
+                        <div className="space-y-2">
+                          {reportData.income.map((income, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span className="text-gray-700">{income.name}</span>
+                              <span className="font-medium">${income.balance.toLocaleString()}</span>
+                            </div>
+                          ))}
+                          <div className="border-t pt-2 flex justify-between font-semibold">
+                            <span>Total Income</span>
+                            <span>${reportData.total_income.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-gray-200 rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Expenses</h4>
+                        <div className="space-y-2">
+                          {reportData.expenses.map((expense, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span className="text-gray-700">{expense.name}</span>
+                              <span className="font-medium">${expense.balance.toLocaleString()}</span>
+                            </div>
+                          ))}
+                          <div className="border-t pt-2 flex justify-between font-semibold">
+                            <span>Total Expenses</span>
+                            <span>${reportData.total_expenses.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`p-6 rounded-lg ${
+                        reportData.net_income >= 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+                      }`}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-lg font-semibold">Net Income</span>
+                          <span className={`text-xl font-bold ${
+                            reportData.net_income >= 0 ? 'text-green-700' : 'text-red-700'
+                          }`}>
+                            ${reportData.net_income.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cash Flow Projections */}
+                  {selectedReport.id === 'cash-flow-projections' && reportData.projections && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-blue-900">Current Cash</h4>
+                          <p className="text-2xl font-bold text-blue-700">${reportData.current_cash_position.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-green-900">Total Receivables</h4>
+                          <p className="text-2xl font-bold text-green-700">${reportData.total_receivables.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-red-900">Total Payables</h4>
+                          <p className="text-2xl font-bold text-red-700">${reportData.total_payables.toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                        <table className="w-full">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Opening Balance</th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Projected Inflows</th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Projected Outflows</th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Net Cash Flow</th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Closing Balance</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {reportData.projections.map((projection, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {projection.month_name}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                  ${projection.opening_balance.toLocaleString()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right">
+                                  ${projection.projected_inflows.toLocaleString()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right">
+                                  ${projection.projected_outflows.toLocaleString()}
+                                </td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm text-right ${
+                                  projection.net_cash_flow >= 0 ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  ${projection.net_cash_flow.toLocaleString()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                                  ${projection.closing_balance.toLocaleString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Customer Selection for AR Aging Details */}
+                  {reportData.type === 'customer-selection' && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Select Customer for Detailed Aging Report</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {customers.map((customer) => (
+                          <button
+                            key={customer.id}
+                            onClick={() => loadCustomerAgingDetails(customer.id)}
+                            className="p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 text-left transition-colors"
+                          >
+                            <div className="font-medium text-gray-900">{customer.name}</div>
+                            {customer.company && <div className="text-sm text-gray-600">{customer.company}</div>}
+                            <div className="text-sm text-gray-500 mt-1">Balance: ${customer.balance.toLocaleString()}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Vendor Selection for AP Aging Details */}
+                  {reportData.type === 'vendor-selection' && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Select Vendor for Detailed Aging Report</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {vendors.map((vendor) => (
+                          <button
+                            key={vendor.id}
+                            onClick={() => loadVendorAgingDetails(vendor.id)}
+                            className="p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 text-left transition-colors"
+                          >
+                            <div className="font-medium text-gray-900">{vendor.name}</div>
+                            {vendor.company && <div className="text-sm text-gray-600">{vendor.company}</div>}
+                            <div className="text-sm text-gray-500 mt-1">Balance: ${vendor.balance.toLocaleString()}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Customer Aging Details */}
+                  {reportData.type === 'customer-aging-details' && reportData.customer && (
+                    <div className="space-y-6">
+                      <div className="bg-white border border-gray-200 rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Customer: {reportData.customer.name}</h4>
+                        {reportData.customer.company && <p className="text-gray-600">{reportData.customer.company}</p>}
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                            <div className="text-sm font-medium text-green-900">Current (≤30 days)</div>
+                            <div className="text-lg font-bold text-green-700">${reportData.summary.current_total.toLocaleString()}</div>
+                          </div>
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <div className="text-sm font-medium text-yellow-900">31-60 days</div>
+                            <div className="text-lg font-bold text-yellow-700">${reportData.summary.days_31_60_total.toLocaleString()}</div>
+                          </div>
+                          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                            <div className="text-sm font-medium text-orange-900">61-90 days</div>
+                            <div className="text-lg font-bold text-orange-700">${reportData.summary.days_61_90_total.toLocaleString()}</div>
+                          </div>
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                            <div className="text-sm font-medium text-red-900">Over 90 days</div>
+                            <div className="text-lg font-bold text-red-700">${reportData.summary.over_90_total.toLocaleString()}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Detailed aging breakdown */}
+                      {Object.entries(reportData.aging_buckets).map(([bucket, invoices]) => (
+                        invoices.length > 0 && (
+                          <div key={bucket} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                            <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                              <h5 className="font-semibold text-gray-900">
+                                {bucket === 'current' ? 'Current (≤30 days)' :
+                                 bucket === 'days_31_60' ? '31-60 days' :
+                                 bucket === 'days_61_90' ? '61-90 days' : 'Over 90 days'}
+                              </h5>
+                            </div>
+                            <table className="w-full">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Days Overdue</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {invoices.map((invoice, index) => (
+                                  <tr key={index} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                      {invoice.invoice_number}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                      {new Date(invoice.date).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                      {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                      ${invoice.balance.toLocaleString()}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
+                                      {invoice.days_overdue}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Similar structure for Vendor Aging Details would go here */}
+
+                  {/* Standard A/R and A/P Aging Reports */}
+                  {(selectedReport.id === 'ar-aging' || selectedReport.id === 'ap-aging') && reportData.ar_aging || reportData.ap_aging && (
+                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {selectedReport.id === 'ar-aging' ? 'Customer' : 'Vendor'}
+                            </th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Current</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">31-60 Days</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">61-90 Days</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Over 90</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {(reportData.ar_aging || reportData.ap_aging || []).map((item, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <button
+                                  onClick={() => selectedReport.id === 'ar-aging' ? 
+                                    loadCustomerAgingDetails(item.customer_id) : 
+                                    loadVendorAgingDetails(item.vendor_id)
+                                  }
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  {item.customer_name || item.vendor_name}
+                                </button>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                ${item.current.toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                ${item.days_31_60.toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                ${item.days_61_90.toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                ${item.over_90.toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                                ${item.total.toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Other report types - placeholder for now */}
+                  {!['trial-balance', 'balance-sheet', 'income-statement', 'cash-flow-projections', 'ar-aging', 'ap-aging', 'ar-aging-details', 'ap-aging-details'].includes(selectedReport.id) && (
                     <div className="bg-gray-50 p-8 rounded-lg text-center">
                       <div className="text-4xl mb-4">{selectedReport.icon}</div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedReport.name}</h3>
