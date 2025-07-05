@@ -1143,22 +1143,7 @@ async def get_audit_trail():
     audit_entries = await db.audit_entries.find().sort("timestamp", -1).to_list(1000)
     return [AuditEntry(**entry) for entry in audit_entries]
 
-# User endpoints
-@api_router.post("/users", response_model=User)
-async def create_user(user: UserCreate):
-    user_dict = user.dict()
-    # Hash the password before storing
-    password_hash = hash_password(user.password)
-    user_dict.pop("password")  # Remove plain password
-    user_dict["password_hash"] = password_hash  # Store hashed password
-    user_obj = User(**user_dict)
-    await db.users.insert_one(user_obj.dict())
-    return user_obj
-
-@api_router.get("/users", response_model=List[User])
-async def get_users():
-    users = await db.users.find({"active": True}).to_list(1000)
-    return [User(**user) for user in users]
+# User endpoints - Basic implementation moved to advanced section below
 
 # Role endpoints
 @api_router.post("/roles", response_model=Role)
