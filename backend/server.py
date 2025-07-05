@@ -434,6 +434,70 @@ class ToDoCreate(BaseModel):
     due_date: Optional[datetime] = None
     priority: str = "Medium"
 
+# Banking and Reconciliation Models
+class BankTransaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    account_id: str
+    date: datetime
+    description: str
+    amount: float
+    transaction_type: str = "Unknown"  # Credit, Debit, Transfer, etc.
+    reference_number: Optional[str] = None
+    check_number: Optional[str] = None
+    memo: Optional[str] = None
+    category: Optional[str] = None
+    reconciled: bool = False
+    reconciliation_id: Optional[str] = None
+    bank_transaction_id: Optional[str] = None  # From bank feed
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class BankTransactionCreate(BaseModel):
+    account_id: str
+    date: datetime
+    description: str
+    amount: float
+    transaction_type: str = "Unknown"
+    reference_number: Optional[str] = None
+    check_number: Optional[str] = None
+    memo: Optional[str] = None
+    category: Optional[str] = None
+
+class Reconciliation(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    account_id: str
+    statement_date: datetime
+    statement_ending_balance: float
+    reconciled_balance: float
+    difference: float = 0.0
+    status: str = "In Progress"  # In Progress, Completed, Discrepancy
+    reconciled_transactions: List[str] = []  # List of transaction IDs
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = None
+
+class ReconciliationCreate(BaseModel):
+    account_id: str
+    statement_date: datetime
+    statement_ending_balance: float
+    notes: Optional[str] = None
+
+class BankImportTransaction(BaseModel):
+    date: datetime
+    description: str
+    amount: float
+    transaction_type: str
+    reference_number: Optional[str] = None
+    check_number: Optional[str] = None
+    category: Optional[str] = None
+    balance: Optional[float] = None
+
+class BankImportResult(BaseModel):
+    total_transactions: int
+    imported_transactions: int
+    duplicate_transactions: int
+    errors: List[str] = []
+    preview_transactions: List[BankImportTransaction] = []
+
 class AuditEntry(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = Field(default_factory=datetime.utcnow)
