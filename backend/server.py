@@ -2915,6 +2915,479 @@ async def get_reconciliation_report(account_id: str, start_date: str = None, end
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating reconciliation report: {str(e)}")
 
+# Phase 4: Form Customization Endpoints
+
+@api_router.post("/form-templates", response_model=FormTemplate)
+async def create_form_template(template: FormTemplateCreate):
+    """Create a new form template"""
+    template_dict = template.dict()
+    template_obj = FormTemplate(**template_dict)
+    await db.form_templates.insert_one(template_obj.dict())
+    return template_obj
+
+@api_router.get("/form-templates", response_model=List[FormTemplate])
+async def get_form_templates(template_type: Optional[str] = None):
+    """Get all form templates, optionally filtered by type"""
+    query = {}
+    if template_type:
+        query["template_type"] = template_type
+    
+    templates = await db.form_templates.find(query).to_list(100)
+    result = []
+    for template in templates:
+        if "_id" in template:
+            del template["_id"]
+        result.append(FormTemplate(**template))
+    return result
+
+@api_router.get("/form-templates/{template_id}", response_model=FormTemplate)
+async def get_form_template(template_id: str):
+    """Get a specific form template"""
+    template = await db.form_templates.find_one({"id": template_id})
+    if not template:
+        raise HTTPException(status_code=404, detail="Form template not found")
+    return FormTemplate(**template)
+
+@api_router.put("/form-templates/{template_id}", response_model=FormTemplate)
+async def update_form_template(template_id: str, template_update: FormTemplateCreate):
+    """Update a form template"""
+    template = await db.form_templates.find_one({"id": template_id})
+    if not template:
+        raise HTTPException(status_code=404, detail="Form template not found")
+    
+    update_data = template_update.dict()
+    update_data["updated_at"] = datetime.utcnow()
+    
+    await db.form_templates.update_one({"id": template_id}, {"$set": update_data})
+    updated_template = await db.form_templates.find_one({"id": template_id})
+    return FormTemplate(**updated_template)
+
+@api_router.delete("/form-templates/{template_id}")
+async def delete_form_template(template_id: str):
+    """Delete a form template"""
+    template = await db.form_templates.find_one({"id": template_id})
+    if not template:
+        raise HTTPException(status_code=404, detail="Form template not found")
+    
+    await db.form_templates.delete_one({"id": template_id})
+    return {"message": "Form template deleted successfully"}
+
+@api_router.post("/form-templates/{template_id}/set-default")
+async def set_default_template(template_id: str):
+    """Set a template as default for its type"""
+    template = await db.form_templates.find_one({"id": template_id})
+    if not template:
+        raise HTTPException(status_code=404, detail="Form template not found")
+    
+    # Remove default flag from other templates of the same type
+    await db.form_templates.update_many(
+        {"template_type": template["template_type"]}, 
+        {"$set": {"is_default": False}}
+    )
+    
+    # Set this template as default
+    await db.form_templates.update_one(
+        {"id": template_id}, 
+        {"$set": {"is_default": True}}
+    )
+    
+    return {"message": "Template set as default successfully"}
+
+# Custom Fields Endpoints
+@api_router.post("/custom-fields", response_model=CustomField)
+async def create_custom_field(field: CustomFieldCreate):
+    """Create a new custom field"""
+    field_dict = field.dict()
+    field_obj = CustomField(**field_dict)
+    await db.custom_fields.insert_one(field_obj.dict())
+    return field_obj
+
+@api_router.get("/custom-fields", response_model=List[CustomField])
+async def get_custom_fields():
+    """Get all custom fields"""
+    fields = await db.custom_fields.find({}).to_list(100)
+    result = []
+    for field in fields:
+        if "_id" in field:
+            del field["_id"]
+        result.append(CustomField(**field))
+    return result
+
+@api_router.get("/custom-fields/{field_id}", response_model=CustomField)
+async def get_custom_field(field_id: str):
+    """Get a specific custom field"""
+    field = await db.custom_fields.find_one({"id": field_id})
+    if not field:
+        raise HTTPException(status_code=404, detail="Custom field not found")
+    return CustomField(**field)
+
+@api_router.put("/custom-fields/{field_id}", response_model=CustomField)
+async def update_custom_field(field_id: str, field_update: CustomFieldCreate):
+    """Update a custom field"""
+    field = await db.custom_fields.find_one({"id": field_id})
+    if not field:
+        raise HTTPException(status_code=404, detail="Custom field not found")
+    
+    update_data = field_update.dict()
+    await db.custom_fields.update_one({"id": field_id}, {"$set": update_data})
+    updated_field = await db.custom_fields.find_one({"id": field_id})
+    return CustomField(**updated_field)
+
+@api_router.delete("/custom-fields/{field_id}")
+async def delete_custom_field(field_id: str):
+    """Delete a custom field"""
+    field = await db.custom_fields.find_one({"id": field_id})
+    if not field:
+        raise HTTPException(status_code=404, detail="Custom field not found")
+    
+    await db.custom_fields.delete_one({"id": field_id})
+    return {"message": "Custom field deleted successfully"}
+
+# Company Branding Endpoints
+@api_router.post("/company-branding", response_model=CompanyBranding)
+async def create_company_branding(branding: CompanyBrandingCreate):
+    """Create or update company branding"""
+    branding_dict = branding.dict()
+    branding_obj = CompanyBranding(**branding_dict)
+    
+    # Check if branding already exists for this company
+    existing = await db.company_branding.find_one({"company_id": branding.company_id})
+    if existing:
+        # Update existing branding
+        branding_dict["updated_at"] = datetime.utcnow()
+        await db.company_branding.update_one(
+            {"company_id": branding.company_id}, 
+            {"$set": branding_dict}
+        )
+        updated_branding = await db.company_branding.find_one({"company_id": branding.company_id})
+        return CompanyBranding(**updated_branding)
+    else:
+        # Create new branding
+        await db.company_branding.insert_one(branding_obj.dict())
+        return branding_obj
+
+@api_router.get("/company-branding/{company_id}", response_model=CompanyBranding)
+async def get_company_branding(company_id: str):
+    """Get company branding"""
+    branding = await db.company_branding.find_one({"company_id": company_id})
+    if not branding:
+        raise HTTPException(status_code=404, detail="Company branding not found")
+    return CompanyBranding(**branding)
+
+@api_router.post("/company-branding/{company_id}/upload-logo")
+async def upload_company_logo(company_id: str, file: UploadFile = File(...)):
+    """Upload company logo"""
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    # Read file content and encode as base64
+    file_content = await file.read()
+    logo_base64 = base64.b64encode(file_content).decode('utf-8')
+    
+    # Update or create company branding
+    branding_data = {
+        "company_id": company_id,
+        "logo_base64": logo_base64,
+        "logo_filename": file.filename,
+        "logo_mime_type": file.content_type,
+        "updated_at": datetime.utcnow()
+    }
+    
+    existing = await db.company_branding.find_one({"company_id": company_id})
+    if existing:
+        await db.company_branding.update_one(
+            {"company_id": company_id}, 
+            {"$set": branding_data}
+        )
+    else:
+        branding_data["company_name"] = "Your Company"
+        branding_obj = CompanyBranding(**branding_data)
+        await db.company_branding.insert_one(branding_obj.dict())
+    
+    return {"message": "Logo uploaded successfully", "filename": file.filename}
+
+# Phase 4: User Management & Security Endpoints
+
+@api_router.post("/permissions", response_model=Permission)
+async def create_permission(permission: PermissionCreate):
+    """Create a new permission"""
+    permission_dict = permission.dict()
+    permission_obj = Permission(**permission_dict)
+    await db.permissions.insert_one(permission_obj.dict())
+    return permission_obj
+
+@api_router.get("/permissions", response_model=List[Permission])
+async def get_permissions():
+    """Get all permissions"""
+    permissions = await db.permissions.find({}).to_list(100)
+    result = []
+    for permission in permissions:
+        if "_id" in permission:
+            del permission["_id"]
+        result.append(Permission(**permission))
+    return result
+
+@api_router.post("/user-roles", response_model=UserRole)
+async def create_user_role(role: UserRoleCreate):
+    """Create a new user role"""
+    role_dict = role.dict()
+    role_obj = UserRole(**role_dict)
+    await db.user_roles.insert_one(role_obj.dict())
+    return role_obj
+
+@api_router.get("/user-roles", response_model=List[UserRole])
+async def get_user_roles():
+    """Get all user roles"""
+    roles = await db.user_roles.find({}).to_list(100)
+    result = []
+    for role in roles:
+        if "_id" in role:
+            del role["_id"]
+        result.append(UserRole(**role))
+    return result
+
+@api_router.get("/user-roles/{role_id}", response_model=UserRole)
+async def get_user_role(role_id: str):
+    """Get a specific user role"""
+    role = await db.user_roles.find_one({"id": role_id})
+    if not role:
+        raise HTTPException(status_code=404, detail="User role not found")
+    return UserRole(**role)
+
+@api_router.put("/user-roles/{role_id}", response_model=UserRole)
+async def update_user_role(role_id: str, role_update: UserRoleCreate):
+    """Update a user role"""
+    role = await db.user_roles.find_one({"id": role_id})
+    if not role:
+        raise HTTPException(status_code=404, detail="User role not found")
+    
+    update_data = role_update.dict()
+    update_data["updated_at"] = datetime.utcnow()
+    
+    await db.user_roles.update_one({"id": role_id}, {"$set": update_data})
+    updated_role = await db.user_roles.find_one({"id": role_id})
+    return UserRole(**updated_role)
+
+@api_router.delete("/user-roles/{role_id}")
+async def delete_user_role(role_id: str):
+    """Delete a user role"""
+    role = await db.user_roles.find_one({"id": role_id})
+    if not role:
+        raise HTTPException(status_code=404, detail="User role not found")
+    
+    await db.user_roles.delete_one({"id": role_id})
+    return {"message": "User role deleted successfully"}
+
+@api_router.post("/users", response_model=User)
+async def create_user(user: UserCreate):
+    """Create a new user"""
+    # Check if username already exists
+    existing_user = await db.users.find_one({"username": user.username})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    user_dict = user.dict()
+    # In a real application, you would hash the password here
+    user_obj = User(**user_dict)
+    await db.users.insert_one(user_obj.dict())
+    return user_obj
+
+@api_router.get("/users", response_model=List[User])
+async def get_users():
+    """Get all users"""
+    users = await db.users.find({"active": True}).to_list(100)
+    result = []
+    for user in users:
+        if "_id" in user:
+            del user["_id"]
+        result.append(User(**user))
+    return result
+
+@api_router.get("/users/{user_id}", response_model=User)
+async def get_user(user_id: str):
+    """Get a specific user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return User(**user)
+
+@api_router.put("/users/{user_id}", response_model=User)
+async def update_user(user_id: str, user_update: UserCreate):
+    """Update a user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    update_data = user_update.dict()
+    await db.users.update_one({"id": user_id}, {"$set": update_data})
+    updated_user = await db.users.find_one({"id": user_id})
+    return User(**updated_user)
+
+@api_router.delete("/users/{user_id}")
+async def delete_user(user_id: str):
+    """Delete a user (soft delete)"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one({"id": user_id}, {"$set": {"active": False}})
+    return {"message": "User deactivated successfully"}
+
+# Authentication Endpoints
+@api_router.post("/auth/login")
+async def login(username: str, password: str):
+    """User login"""
+    user = await db.users.find_one({"username": username, "active": True})
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # In a real application, you would verify the hashed password here
+    if user["password"] != password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Create session token
+    session_token = str(uuid.uuid4())
+    session = UserSession(
+        user_id=user["id"],
+        session_token=session_token,
+        expires_at=datetime.utcnow() + timedelta(days=7)
+    )
+    
+    await db.user_sessions.insert_one(session.dict())
+    
+    return {
+        "user_id": user["id"],
+        "username": user["username"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+        "session_token": session_token
+    }
+
+@api_router.post("/auth/logout")
+async def logout(session_token: str):
+    """User logout"""
+    await db.user_sessions.delete_one({"session_token": session_token})
+    return {"message": "Logged out successfully"}
+
+@api_router.get("/auth/verify")
+async def verify_session(session_token: str):
+    """Verify user session"""
+    session = await db.user_sessions.find_one({
+        "session_token": session_token,
+        "expires_at": {"$gt": datetime.utcnow()}
+    })
+    
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    
+    user = await db.users.find_one({"id": session["user_id"], "active": True})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Update last activity
+    await db.user_sessions.update_one(
+        {"session_token": session_token},
+        {"$set": {"last_activity": datetime.utcnow()}}
+    )
+    
+    return {
+        "user_id": user["id"],
+        "username": user["username"],
+        "full_name": user["full_name"],
+        "role": user["role"]
+    }
+
+# Audit Log Endpoints
+@api_router.post("/audit-log", response_model=AuditLog)
+async def create_audit_log(audit_log: AuditLogCreate):
+    """Create an audit log entry"""
+    log_dict = audit_log.dict()
+    log_obj = AuditLog(**log_dict)
+    await db.audit_logs.insert_one(log_obj.dict())
+    return log_obj
+
+@api_router.get("/audit-log", response_model=List[AuditLog])
+async def get_audit_logs(
+    user_id: Optional[str] = None,
+    resource_type: Optional[str] = None,
+    action: Optional[str] = None,
+    limit: int = 100
+):
+    """Get audit logs with optional filtering"""
+    query = {}
+    if user_id:
+        query["user_id"] = user_id
+    if resource_type:
+        query["resource_type"] = resource_type
+    if action:
+        query["action"] = action
+    
+    logs = await db.audit_logs.find(query).sort("timestamp", -1).limit(limit).to_list(limit)
+    result = []
+    for log in logs:
+        if "_id" in log:
+            del log["_id"]
+        result.append(AuditLog(**log))
+    return result
+
+@api_router.get("/audit-log/{resource_type}/{resource_id}", response_model=List[AuditLog])
+async def get_resource_audit_logs(resource_type: str, resource_id: str):
+    """Get audit logs for a specific resource"""
+    logs = await db.audit_logs.find({
+        "resource_type": resource_type,
+        "resource_id": resource_id
+    }).sort("timestamp", -1).to_list(100)
+    
+    result = []
+    for log in logs:
+        if "_id" in log:
+            del log["_id"]
+        result.append(AuditLog(**log))
+    return result
+
+# Default Permissions Setup
+@api_router.post("/setup/default-permissions")
+async def setup_default_permissions():
+    """Setup default permissions and roles"""
+    # Check if permissions already exist
+    existing_permissions = await db.permissions.find({}).to_list(1)
+    if existing_permissions:
+        return {"message": "Default permissions already exist"}
+    
+    # Create default permissions
+    default_permissions = [
+        Permission(name="accounts_read", description="Read accounts", module="accounts", actions=["read"]),
+        Permission(name="accounts_write", description="Write accounts", module="accounts", actions=["create", "update", "delete"]),
+        Permission(name="customers_read", description="Read customers", module="customers", actions=["read"]),
+        Permission(name="customers_write", description="Write customers", module="customers", actions=["create", "update", "delete"]),
+        Permission(name="vendors_read", description="Read vendors", module="vendors", actions=["read"]),
+        Permission(name="vendors_write", description="Write vendors", module="vendors", actions=["create", "update", "delete"]),
+        Permission(name="transactions_read", description="Read transactions", module="transactions", actions=["read"]),
+        Permission(name="transactions_write", description="Write transactions", module="transactions", actions=["create", "update", "delete"]),
+        Permission(name="reports_read", description="Read reports", module="reports", actions=["read"]),
+        Permission(name="banking_read", description="Read banking", module="banking", actions=["read"]),
+        Permission(name="banking_write", description="Write banking", module="banking", actions=["create", "update", "delete"]),
+        Permission(name="admin_full", description="Full admin access", module="admin", actions=["create", "read", "update", "delete"]),
+    ]
+    
+    for permission in default_permissions:
+        await db.permissions.insert_one(permission.dict())
+    
+    # Create default roles
+    admin_permissions = [p.id for p in default_permissions]
+    user_permissions = [p.id for p in default_permissions if p.name.endswith("_read")]
+    
+    default_roles = [
+        UserRole(name="Administrator", description="Full system access", permissions=admin_permissions, is_admin=True),
+        UserRole(name="Accountant", description="Full accounting access", permissions=admin_permissions[:-1]),
+        UserRole(name="User", description="Basic user access", permissions=user_permissions),
+    ]
+    
+    for role in default_roles:
+        await db.user_roles.insert_one(role.dict())
+    
+    return {"message": "Default permissions and roles created successfully"}
+
 # Add the router to the app
 app.include_router(api_router)
 
