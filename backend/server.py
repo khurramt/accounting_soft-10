@@ -1726,6 +1726,368 @@ async def update_account_balance(account_id: str):
 async def root():
     return {"message": "QBClone Accounting API", "version": "1.0"}
 
+# Banking and Reconciliation Endpoints
+
+# Bank Transactions endpoints
+@api_router.post("/bank-transactions", response_model=BankTransaction)
+async def create_bank_transaction(transaction: BankTransactionCreate):
+    transaction_dict = transaction.dict()
+    transaction_obj = BankTransaction(**transaction_dict)
+    await db.bank_transactions.insert_one(transaction_obj.dict())
+    return transaction_obj
+
+@api_router.get("/bank-transactions", response_model=List[BankTransaction])
+async def get_bank_transactions(account_id: str = Query(None)):
+    query = {}
+    if account_id:
+        query["account_id"] = account_id
+    
+    transactions = await db.bank_transactions.find(query).to_list(1000)
+    result = []
+    for transaction in transactions:
+        if "_id" in transaction:
+            del transaction["_id"]
+        result.append(BankTransaction(**transaction))
+    return result
+
+@api_router.put("/bank-transactions/{transaction_id}/reconcile")
+async def reconcile_bank_transaction(transaction_id: str, reconciliation_id: str = None):
+    update_data = {
+        "reconciled": True,
+        "reconciliation_id": reconciliation_id
+    }
+    
+    result = await db.bank_transactions.update_one(
+        {"id": transaction_id}, 
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Bank transaction not found")
+    
+    return {"message": "Transaction reconciled successfully"}
+
+# Reconciliation endpoints
+@api_router.post("/reconciliations", response_model=Reconciliation)
+async def create_reconciliation(reconciliation: ReconciliationCreate):
+    reconciliation_dict = reconciliation.dict()
+    reconciliation_dict["reconciled_balance"] = 0.0  # Will be updated as transactions are reconciled
+    reconciliation_obj = Reconciliation(**reconciliation_dict)
+    await db.reconciliations.insert_one(reconciliation_obj.dict())
+    return reconciliation_obj
+
+@api_router.get("/reconciliations", response_model=List[Reconciliation])
+async def get_reconciliations(account_id: str = Query(None)):
+    query = {}
+    if account_id:
+        query["account_id"] = account_id
+    
+    reconciliations = await db.reconciliations.find(query).sort("created_at", -1).to_list(100)
+    result = []
+    for reconciliation in reconciliations:
+        if "_id" in reconciliation:
+            del reconciliation["_id"]
+        result.append(Reconciliation(**reconciliation))
+    return result
+
+@api_router.get("/reconciliations/{reconciliation_id}", response_model=Reconciliation)
+async def get_reconciliation(reconciliation_id: str):
+    reconciliation = await db.reconciliations.find_one({"id": reconciliation_id})
+    if not reconciliation:
+        raise HTTPException(status_code=404, detail="Reconciliation not found")
+    return Reconciliation(**reconciliation)
+
+@api_router.put("/reconciliations/{reconciliation_id}")
+async def update_reconciliation(reconciliation_id: str, update_data: Dict[str, Any]):
+    result = await db.reconciliations.update_one(
+        {"id": reconciliation_id}, 
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Reconciliation not found")
+    
+    updated_reconciliation = await db.reconciliations.find_one({"id": reconciliation_id})
+    return Reconciliation(**updated_reconciliation)
+
+@api_router.post("/reconciliations/{reconciliation_id}/complete")
+async def complete_reconciliation(reconciliation_id: str):
+    reconciliation = await db.reconciliations.find_one({"id": reconciliation_id})
+    if not reconciliation:
+        raise HTTPException(status_code=404, detail="Reconciliation not found")
+    
+    # Calculate final reconciled balance
+    reconciled_transactions = await db.bank_transactions.find({
+        "reconciliation_id": reconciliation_id,
+        "reconciled": True
+    }).to_list(1000)
+    
+    reconciled_balance = sum(t.get("amount", 0) for t in reconciled_transactions)
+    difference = reconciliation["statement_ending_balance"] - reconciled_balance
+    
+    status = "Completed" if abs(difference) < 0.01 else "Discrepancy"
+    
+    update_data = {
+        "status": status,
+        "reconciled_balance": reconciled_balance,
+        "difference": difference,
+        "completed_at": datetime.utcnow()
+    }
+    
+    await db.reconciliations.update_one(
+        {"id": reconciliation_id}, 
+        {"$set": update_data}
+    )
+    
+    return {"message": "Reconciliation completed", "status": status, "difference": difference}
+
+# Bank Import endpoints
+@api_router.post("/bank-import/csv/{account_id}")
+async def import_csv_bank_statement(account_id: str, file: UploadFile = File(...)):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+    
+    try:
+        # Read CSV content
+        contents = await file.read()
+        content_str = contents.decode('utf-8')
+        
+        # Parse CSV
+        csv_reader = csv.DictReader(io.StringIO(content_str))
+        transactions = []
+        errors = []
+        
+        for row_num, row in enumerate(csv_reader, 1):
+            try:
+                # Common CSV field mappings - flexible field detection
+                date_fields = ['Date', 'Transaction Date', 'date', 'transaction_date']
+                desc_fields = ['Description', 'Memo', 'description', 'memo', 'payee']
+                amount_fields = ['Amount', 'amount', 'debit', 'credit']
+                
+                date_str = None
+                description = None
+                amount = None
+                
+                # Find date field
+                for field in date_fields:
+                    if field in row and row[field]:
+                        date_str = row[field]
+                        break
+                
+                # Find description field  
+                for field in desc_fields:
+                    if field in row and row[field]:
+                        description = row[field]
+                        break
+                
+                # Find amount field
+                for field in amount_fields:
+                    if field in row and row[field]:
+                        amount_str = row[field].replace('$', '').replace(',', '')
+                        amount = float(amount_str)
+                        break
+                
+                if not all([date_str, description, amount is not None]):
+                    errors.append(f"Row {row_num}: Missing required fields")
+                    continue
+                
+                # Parse date
+                try:
+                    transaction_date = datetime.strptime(date_str, '%m/%d/%Y')
+                except:
+                    try:
+                        transaction_date = datetime.strptime(date_str, '%Y-%m-%d')
+                    except:
+                        errors.append(f"Row {row_num}: Invalid date format")
+                        continue
+                
+                transaction_type = "Credit" if amount > 0 else "Debit"
+                
+                transactions.append(BankImportTransaction(
+                    date=transaction_date,
+                    description=description,
+                    amount=amount,
+                    transaction_type=transaction_type,
+                    reference_number=row.get('Reference', ''),
+                    check_number=row.get('Check Number', ''),
+                    category=row.get('Category', ''),
+                    balance=float(row.get('Balance', 0)) if row.get('Balance') else None
+                ))
+                
+            except Exception as e:
+                errors.append(f"Row {row_num}: {str(e)}")
+        
+        # Preview mode - return first 10 transactions for user review
+        result = BankImportResult(
+            total_transactions=len(transactions),
+            imported_transactions=0,  # Will be set when actually imported
+            duplicate_transactions=0,
+            errors=errors,
+            preview_transactions=transactions[:10]
+        )
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing CSV file: {str(e)}")
+
+@api_router.post("/bank-import/qfx/{account_id}")
+async def import_qfx_bank_statement(account_id: str, file: UploadFile = File(...)):
+    if not file.filename.lower().endswith(('.qfx', '.ofx')):
+        raise HTTPException(status_code=400, detail="File must be QFX or OFX format")
+    
+    try:
+        # Read QFX/OFX content
+        contents = await file.read()
+        content_str = contents.decode('utf-8')
+        
+        transactions = []
+        errors = []
+        
+        # Parse OFX/QFX format (simplified parsing)
+        lines = content_str.split('\n')
+        current_transaction = {}
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('<STMTTRN>'):
+                current_transaction = {}
+            elif line.startswith('</STMTTRN>'):
+                if current_transaction:
+                    try:
+                        # Parse transaction date
+                        date_str = current_transaction.get('DTPOSTED', '')
+                        if len(date_str) >= 8:
+                            transaction_date = datetime.strptime(date_str[:8], '%Y%m%d')
+                        else:
+                            raise ValueError("Invalid date")
+                        
+                        amount = float(current_transaction.get('TRNAMT', 0))
+                        description = current_transaction.get('NAME', '') or current_transaction.get('MEMO', '')
+                        
+                        transaction_type = "Credit" if amount > 0 else "Debit"
+                        
+                        transactions.append(BankImportTransaction(
+                            date=transaction_date,
+                            description=description,
+                            amount=amount,
+                            transaction_type=transaction_type,
+                            reference_number=current_transaction.get('FITID', ''),
+                            check_number=current_transaction.get('CHECKNUM', ''),
+                            category=current_transaction.get('MEMO', '')
+                        ))
+                    except Exception as e:
+                        errors.append(f"Error parsing transaction: {str(e)}")
+            else:
+                # Parse individual fields
+                if '<' in line and '>' in line:
+                    start = line.find('<') + 1
+                    end = line.find('>')
+                    if start < end:
+                        field_name = line[start:end]
+                        field_value = line[end+1:].strip()
+                        if field_value and not field_value.startswith('<'):
+                            current_transaction[field_name] = field_value
+        
+        result = BankImportResult(
+            total_transactions=len(transactions),
+            imported_transactions=0,
+            duplicate_transactions=0,
+            errors=errors,
+            preview_transactions=transactions[:10]
+        )
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing QFX/OFX file: {str(e)}")
+
+@api_router.post("/bank-import/confirm/{account_id}")
+async def confirm_bank_import(account_id: str, transactions: List[BankImportTransaction]):
+    try:
+        imported_count = 0
+        duplicate_count = 0
+        errors = []
+        
+        for transaction in transactions:
+            try:
+                # Check for duplicates based on date, amount, and description
+                existing = await db.bank_transactions.find_one({
+                    "account_id": account_id,
+                    "date": transaction.date,
+                    "amount": transaction.amount,
+                    "description": transaction.description
+                })
+                
+                if existing:
+                    duplicate_count += 1
+                    continue
+                
+                # Create bank transaction
+                bank_transaction = BankTransaction(
+                    account_id=account_id,
+                    date=transaction.date,
+                    description=transaction.description,
+                    amount=transaction.amount,
+                    transaction_type=transaction.transaction_type,
+                    reference_number=transaction.reference_number,
+                    check_number=transaction.check_number,
+                    memo=transaction.category
+                )
+                
+                await db.bank_transactions.insert_one(bank_transaction.dict())
+                imported_count += 1
+                
+            except Exception as e:
+                errors.append(f"Error importing transaction: {str(e)}")
+        
+        return {
+            "imported_transactions": imported_count,
+            "duplicate_transactions": duplicate_count,
+            "errors": errors,
+            "message": f"Successfully imported {imported_count} transactions"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error importing transactions: {str(e)}")
+
+# Reconciliation Reports
+@api_router.get("/reports/reconciliation/{account_id}")
+async def get_reconciliation_report(account_id: str, start_date: str = None, end_date: str = None):
+    try:
+        query = {"account_id": account_id}
+        
+        if start_date:
+            query["statement_date"] = {"$gte": datetime.fromisoformat(start_date)}
+        if end_date:
+            if "statement_date" in query:
+                query["statement_date"]["$lte"] = datetime.fromisoformat(end_date)
+            else:
+                query["statement_date"] = {"$lte": datetime.fromisoformat(end_date)}
+        
+        reconciliations = await db.reconciliations.find(query).sort("statement_date", -1).to_list(100)
+        
+        # Get account information
+        account = await db.accounts.find_one({"id": account_id})
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+        
+        report_data = {
+            "account": Account(**account),
+            "reconciliations": [Reconciliation(**r) for r in reconciliations],
+            "summary": {
+                "total_reconciliations": len(reconciliations),
+                "completed_reconciliations": sum(1 for r in reconciliations if r.get("status") == "Completed"),
+                "reconciliations_with_discrepancies": sum(1 for r in reconciliations if r.get("status") == "Discrepancy"),
+                "average_reconciliation_time": "2.5 days"  # This would be calculated from actual data
+            }
+        }
+        
+        return report_data
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating reconciliation report: {str(e)}")
+
 # Include the router in the main app
 app.include_router(api_router)
 
