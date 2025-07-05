@@ -3215,7 +3215,10 @@ async def create_user(user: UserCreate):
         raise HTTPException(status_code=400, detail="Username already exists")
     
     user_dict = user.dict()
-    # In a real application, you would hash the password here
+    # Hash the password before storing
+    password_hash = hash_password(user.password)
+    user_dict.pop("password")  # Remove plain password
+    user_dict["password_hash"] = password_hash  # Store hashed password
     user_obj = User(**user_dict)
     await db.users.insert_one(user_obj.dict())
     return user_obj
