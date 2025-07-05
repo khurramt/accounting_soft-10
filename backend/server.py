@@ -979,44 +979,81 @@ async def create_manual_journal_entry(manual_entry: ManualJournalEntry):
     }
 
 # Transfer funds endpoint
-@api_router.post("/transfers")
-async def transfer_funds(
-    from_account_id: str,
-    to_account_id: str,
-    amount: float,
-    date: datetime,
+class TransferRequest(BaseModel):
+    from_account_id: str
+    to_account_id: str
+    amount: float
+    transfer_date: datetime
+    reference_number: Optional[str] = None
     memo: Optional[str] = None
-):
-    # Create transfer transaction
+
+@api_router.post("/transfers")
+async def transfer_funds(transfer: TransferRequest):
+    """Transfer funds between accounts"""
+    # Validate accounts exist and are different
+    if transfer.from_account_id == transfer.to_account_id:
+        raise HTTPException(status_code=400, detail="Cannot transfer to the same account")
+    
+    from_account = await db.accounts.find_one({"id": transfer.from_account_id})
+    to_account = await db.accounts.find_one({"id": transfer.to_account_id})
+    
+    if not from_account:
+        raise HTTPException(status_code=404, detail="Source account not found")
+    if not to_account:
+        raise HTTPException(status_code=404, detail="Destination account not found")
+    
+    if transfer.amount <= 0:
+        raise HTTPException(status_code=400, detail="Transfer amount must be positive")
+    
+    # Create transfer transaction record
     transfer_id = str(uuid.uuid4())
+    transfer_transaction = Transaction(
+        transaction_type=TransactionType.TRANSFER,
+        date=transfer.transfer_date,
+        reference_number=transfer.reference_number,
+        memo=transfer.memo,
+        total=transfer.amount,
+        status="Posted",
+        transaction_number=f"TRF-{str(uuid.uuid4())[:8]}"
+    )
+    
+    await db.transactions.insert_one(transfer_transaction.dict())
     
     # Create journal entries for the transfer
     from_entry = JournalEntry(
         transaction_id=transfer_id,
-        account_id=from_account_id,
+        account_id=transfer.from_account_id,
         debit=0,
-        credit=amount,
-        description=f"Transfer to account {to_account_id}",
-        date=date
+        credit=transfer.amount,
+        description=f"Transfer to {to_account['name']} - {transfer.memo or 'Fund transfer'}",
+        date=transfer.transfer_date
     )
     
     to_entry = JournalEntry(
         transaction_id=transfer_id,
-        account_id=to_account_id,
-        debit=amount,
+        account_id=transfer.to_account_id,
+        debit=transfer.amount,
         credit=0,
-        description=f"Transfer from account {from_account_id}",
-        date=date
+        description=f"Transfer from {from_account['name']} - {transfer.memo or 'Fund transfer'}",
+        date=transfer.transfer_date
     )
     
     await db.journal_entries.insert_one(from_entry.dict())
     await db.journal_entries.insert_one(to_entry.dict())
     
     # Update account balances
-    await update_account_balance(from_account_id)
-    await update_account_balance(to_account_id)
+    await update_account_balance(transfer.from_account_id)
+    await update_account_balance(transfer.to_account_id)
     
-    return {"message": "Transfer completed successfully", "transfer_id": transfer_id}
+    return {
+        "message": "Transfer completed successfully", 
+        "transfer_id": transfer_id,
+        "transaction_number": transfer_transaction.transaction_number,
+        "from_account": from_account['name'],
+        "to_account": to_account['name'],
+        "amount": transfer.amount,
+        "date": transfer.transfer_date
+    }
 
 # Payment Processing Endpoints
 @api_router.post("/payments/receive")
