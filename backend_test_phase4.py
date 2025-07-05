@@ -360,11 +360,17 @@ class QBClonePhase4BackendTest(unittest.TestCase):
         logger.info(f"Retrieved user: {retrieved_user['username']}")
         
         # 4. Update user
-        update_data = {
-            "full_name": "Updated Test User",
-            "email": "updated.testuser@example.com",
-            "role": "Manager"
-        }
+        # Get the current user first
+        response = requests.get(f"{BACKEND_URL}/users/{user['id']}")
+        current_user = response.json()
+        
+        # Update only specific fields
+        update_data = current_user.copy()
+        update_data["full_name"] = "Updated Test User"
+        update_data["email"] = "updated.testuser@example.com"
+        update_data["role"] = "Manager"
+        # Add password field which is required for update
+        update_data["password"] = "SecurePassword123!"
         
         response = requests.put(f"{BACKEND_URL}/users/{user['id']}", json=update_data)
         self.assertEqual(response.status_code, 200)
