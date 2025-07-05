@@ -336,6 +336,10 @@ class ItemCreate(BaseModel):
     reorder_point: Optional[float] = None
     preferred_vendor_id: Optional[str] = None
     tax_code: Optional[str] = None
+    # Phase 5: Advanced Inventory Management
+    costing_method: CostingMethod = CostingMethod.FIFO
+    min_stock_level: Optional[float] = None
+    max_stock_level: Optional[float] = None
 
 class Class(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
