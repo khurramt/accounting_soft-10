@@ -1164,12 +1164,22 @@ async def get_vendor_open_bills(vendor_id: str):
         "status": {"$in": ["Open", "Partial"]}
     }).to_list(1000)
     
-    # Calculate remaining balance for each bill
+    # Convert to proper Transaction objects and calculate remaining balance
+    result = []
     for bill in bills:
+        # Remove MongoDB ObjectId field
+        if "_id" in bill:
+            del bill["_id"]
+        
+        # Calculate remaining balance
         if "balance" not in bill:
             bill["balance"] = bill["total"]
+        
+        # Convert to Transaction object to ensure proper serialization
+        transaction_obj = Transaction(**bill)
+        result.append(transaction_obj.dict())
     
-    return bills
+    return result
 
 @api_router.get("/payments/undeposited")
 async def get_undeposited_payments():
