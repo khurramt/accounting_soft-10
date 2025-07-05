@@ -24,6 +24,69 @@ const ReportsCenter = () => {
     location: ''
   });
 
+  // Fetch customers and vendors for drill-down reports
+  useEffect(() => {
+    const fetchCustomersAndVendors = async () => {
+      try {
+        const [customersResponse, vendorsResponse] = await Promise.all([
+          axios.get(`${API}/customers`),
+          axios.get(`${API}/vendors`)
+        ]);
+        setCustomers(customersResponse.data);
+        setVendors(vendorsResponse.data);
+      } catch (error) {
+        console.error('Error fetching customers/vendors:', error);
+      }
+    };
+    
+    fetchCustomersAndVendors();
+  }, []);
+
+  // Handle drill-down for customer aging details
+  const loadCustomerAgingDetails = async (customerId) => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/reports/customer-aging-details/${customerId}`);
+      setReportData({ ...response.data, type: 'customer-aging-details' });
+      setDrillDownMode(true);
+    } catch (error) {
+      console.error('Error loading customer aging details:', error);
+      setReportData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle drill-down for vendor aging details
+  const loadVendorAgingDetails = async (vendorId) => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/reports/vendor-aging-details/${vendorId}`);
+      setReportData({ ...response.data, type: 'vendor-aging-details' });
+      setDrillDownMode(true);
+    } catch (error) {
+      console.error('Error loading vendor aging details:', error);
+      setReportData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle drill-down for dashboard metrics
+  const loadDrillDownData = async (metric, period = 'current_month') => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/analytics/drill-down/${metric}?period=${period}`);
+      setReportData({ ...response.data, type: 'drill-down', originalMetric: metric });
+      setDrillDownMode(true);
+    } catch (error) {
+      console.error('Error loading drill-down data:', error);
+      setReportData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const reportCategories = {
     financial: {
       name: 'Financial Statements',
