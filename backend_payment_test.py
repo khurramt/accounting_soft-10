@@ -843,22 +843,22 @@ class QBCloneAdvancedPaymentTest(unittest.TestCase):
         
         self.assertIsNotNone(workflow_payment)
         
-        # 5. Make deposit to checking account
+        # 5. Make deposit to checking account - convert to query parameters
         checking_account_id = self.accounts["Checking Account"]["id"]
         
-        deposit_data = {
+        query_params = {
             "deposit_date": datetime.utcnow().isoformat(),
             "deposit_to_account_id": checking_account_id,
-            "payment_items": [
-                {
-                    "payment_id": workflow_payment["id"],
-                    "amount": workflow_payment["total"]
-                }
-            ],
             "memo": "Deposit of workflow payment"
         }
         
-        response = requests.post(f"{BACKEND_URL}/deposits", params=deposit_data)
+        # Add payment items as separate parameters
+        query_params["payment_items[0][payment_id]"] = workflow_payment["id"]
+        query_params["payment_items[0][amount]"] = workflow_payment["total"]
+        
+        response = requests.post(f"{BACKEND_URL}/deposits", params=query_params)
+        self.assertEqual(response.status_code, 200)
+        deposit_result = response.json()
         self.assertEqual(response.status_code, 200)
         deposit_result = response.json()
         self.payments["workflow_deposit"] = deposit_result["deposit_id"]
