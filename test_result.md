@@ -295,8 +295,7 @@ metadata:
 test_plan:
   current_focus:
     - "Advanced Payment Processing"
-  stuck_tasks:
-    - "Advanced Payment Processing"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
