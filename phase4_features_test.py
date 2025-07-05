@@ -492,14 +492,46 @@ class QBClonePhase4FeaturesTest(unittest.TestCase):
         """Test audit log API endpoints"""
         logger.info("Testing Audit Log API...")
         
+        # Create a test form template for audit logging
+        template_data = {
+            "name": "Audit Test Template",
+            "template_type": "invoice",
+            "is_default": False,
+            "header_layout": {"title": "INVOICE", "subtitle": "Audit Test"},
+            "show_logo": True,
+            "logo_position": "left",
+            "primary_color": "#3B82F6",
+            "secondary_color": "#F3F4F6"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/form-templates", json=template_data)
+        self.assertEqual(response.status_code, 200)
+        template = response.json()
+        template_id = template["id"]
+        logger.info(f"Created test form template for audit logging: {template['name']} with ID: {template_id}")
+        
+        # Create a test custom field for audit logging
+        field_data = {
+            "name": "audit_test_field",
+            "label": "Audit Test Field",
+            "field_type": "text",
+            "required": False
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/custom-fields", json=field_data)
+        self.assertEqual(response.status_code, 200)
+        field = response.json()
+        field_id = field["id"]
+        logger.info(f"Created test custom field for audit logging: {field['name']} with ID: {field_id}")
+        
         # 1. Create audit log entries (POST /api/audit-log)
         audit_log_data = [
             {
                 "user_id": str(uuid.uuid4()),
                 "action": "create",
                 "resource_type": "form_template",
-                "resource_id": self.form_templates["Professional Invoice"]["id"],
-                "new_values": {"name": "Professional Invoice", "template_type": "invoice"},
+                "resource_id": template_id,
+                "new_values": {"name": "Audit Test Template", "template_type": "invoice"},
                 "ip_address": "192.168.1.100",
                 "user_agent": "Mozilla/5.0 (Test Browser)"
             },
