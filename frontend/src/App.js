@@ -3450,12 +3450,7 @@ const TimeTrackingPage = ({ employees, onRefresh }) => (
   </div>
 );
 
-const DepositsPage = ({ accounts, transactions, onRefresh }) => (
-  <div>
-    <h2 className="text-2xl font-bold text-gray-900 mb-6">Make Deposits</h2>
-    <p className="text-gray-600">Deposit functionality coming soon...</p>
-  </div>
-);
+
 
 const BankFeedsPage = ({ accounts, onRefresh }) => (
   <div>
