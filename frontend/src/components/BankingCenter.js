@@ -153,8 +153,11 @@ const BankingCenter = ({ accounts, transactions, onRefresh }) => {
 
   const leftPanelActions = (
     <div className="flex space-x-2">
-      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
-        📥 Download Transactions
+      <button 
+        onClick={() => setShowImportModal(true)}
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+      >
+        📥 Import Bank Data
       </button>
       <button className="px-3 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm">
         🔗 Connect Bank
@@ -164,11 +167,14 @@ const BankingCenter = ({ accounts, transactions, onRefresh }) => {
 
   const rightPanelActions = selectedAccount && (
     <div className="flex space-x-2">
-      <button className="px-3 py-2 text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors text-sm">
-        ⚖️ Reconcile
+      <button 
+        onClick={() => setShowReconcileModal(true)}
+        className="px-3 py-2 text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+      >
+        ⚖️ Start Reconciliation
       </button>
       <button className="px-3 py-2 text-green-600 bg-green-100 rounded-lg hover:bg-green-200 transition-colors text-sm">
-        📊 Statement
+        📊 View Reports
       </button>
     </div>
   );
