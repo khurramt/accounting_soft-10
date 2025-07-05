@@ -1143,7 +1143,10 @@ async def get_audit_trail():
 @api_router.post("/users", response_model=User)
 async def create_user(user: UserCreate):
     user_dict = user.dict()
-    user_dict.pop("password")  # Remove password from stored data (should be hashed)
+    # Hash the password before storing
+    password_hash = hash_password(user.password)
+    user_dict.pop("password")  # Remove plain password
+    user_dict["password_hash"] = password_hash  # Store hashed password
     user_obj = User(**user_dict)
     await db.users.insert_one(user_obj.dict())
     return user_obj
