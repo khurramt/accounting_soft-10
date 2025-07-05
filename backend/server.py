@@ -907,6 +907,77 @@ async def get_journal_entries():
         result.append(JournalEntry(**entry))
     return result
 
+# Manual Journal Entry for adjustments
+class ManualJournalEntry(BaseModel):
+    date: datetime
+    reference: Optional[str] = None
+    memo: Optional[str] = None
+    entries: List[Dict[str, Any]]  # List of {"account_id": str, "debit": float, "credit": float, "description": str}
+
+@api_router.post("/manual-journal-entry")
+async def create_manual_journal_entry(manual_entry: ManualJournalEntry):
+    """Create multiple journal entries for manual adjustments (must be balanced)"""
+    # Validate that debits equal credits
+    total_debits = sum(entry.get("debit", 0) for entry in manual_entry.entries)
+    total_credits = sum(entry.get("credit", 0) for entry in manual_entry.entries)
+    
+    if abs(total_debits - total_credits) > 0.01:  # Allow for small rounding differences
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Journal entry must be balanced. Debits: ${total_debits:.2f}, Credits: ${total_credits:.2f}"
+        )
+    
+    if len(manual_entry.entries) < 2:
+        raise HTTPException(status_code=400, detail="Journal entry must have at least 2 entries")
+    
+    # Create transaction ID for grouping the entries
+    transaction_id = str(uuid.uuid4())
+    
+    # Create journal entries
+    created_entries = []
+    for entry_data in manual_entry.entries:
+        if entry_data.get("debit", 0) == 0 and entry_data.get("credit", 0) == 0:
+            continue  # Skip zero-amount entries
+            
+        journal_entry = JournalEntry(
+            transaction_id=transaction_id,
+            account_id=entry_data["account_id"],
+            debit=entry_data.get("debit", 0),
+            credit=entry_data.get("credit", 0),
+            description=entry_data.get("description", manual_entry.memo or "Manual journal entry"),
+            date=manual_entry.date
+        )
+        
+        await db.journal_entries.insert_one(journal_entry.dict())
+        
+        # Update account balance
+        await update_account_balance(entry_data["account_id"])
+        
+        created_entries.append(journal_entry)
+    
+    # Create a transaction record for audit purposes
+    adjustment_transaction = Transaction(
+        transaction_type=TransactionType.JOURNAL,
+        date=manual_entry.date,
+        reference_number=manual_entry.reference,
+        memo=manual_entry.memo,
+        total=total_debits,  # Use debits as the "total" for journal entries
+        status="Posted",
+        transaction_number=f"JE-{str(uuid.uuid4())[:8]}"
+    )
+    
+    await db.transactions.insert_one(adjustment_transaction.dict())
+    
+    return {
+        "message": "Manual journal entry created successfully",
+        "transaction_id": transaction_id,
+        "transaction_number": adjustment_transaction.transaction_number,
+        "entries_created": len(created_entries),
+        "total_debits": total_debits,
+        "total_credits": total_credits,
+        "entries": [entry.dict() for entry in created_entries]
+    }
+
 # Transfer funds endpoint
 @api_router.post("/transfers")
 async def transfer_funds(
