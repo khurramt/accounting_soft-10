@@ -566,7 +566,7 @@ function App() {
           {currentPage === 'estimates' && <TransactionFormPage transactionType="Estimate" customers={customers} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
           {currentPage === 'receive-payments' && <ReceivePayments customers={customers} accounts={accounts} onRefresh={fetchTransactions} />}
           {currentPage === 'bills' && <TransactionFormPage transactionType="Bill" vendors={vendors} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
-          {currentPage === 'pay-bills' && <PayBillsPage vendors={vendors} transactions={transactions} accounts={accounts} onRefresh={fetchTransactions} />}
+          {currentPage === 'pay-bills' && <PayBills vendors={vendors} accounts={accounts} onRefresh={fetchTransactions} />}
           {currentPage === 'purchase-orders' && <TransactionFormPage transactionType="Purchase Order" vendors={vendors} items={items} accounts={accounts} classes={classes} locations={locations} terms={terms} onRefresh={fetchTransactions} />}
           {currentPage === 'checks' && <ChecksPage accounts={accounts} vendors={vendors} items={items} onRefresh={fetchTransactions} />}
           {currentPage === 'transfers' && <TransfersPage accounts={accounts} onRefresh={fetchAccounts} />}
