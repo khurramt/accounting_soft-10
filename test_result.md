@@ -174,7 +174,7 @@ backend:
         agent: "main"
         comment: "Added support for all transaction types including Sales Receipts, Estimates, Sales Orders, Credit Memos, Purchase Orders, Checks, Credit Card charges, and Fund Transfers. Includes proper journal entry creation for each type."
 
-  - task: "Enhanced Reporting & A/R-A/P Aging"
+  - task: "Bank Transactions API"
     implemented: true
     working: true
     file: "/app/backend/server.py"
@@ -183,8 +183,56 @@ backend:
     needs_retesting: false
     status_history:
       - working: true
+        agent: "testing"
+        comment: "Successfully tested all bank transaction endpoints. POST /api/bank-transactions creates transactions correctly, GET /api/bank-transactions retrieves them with proper filtering by account, and PUT /api/bank-transactions/{id}/reconcile marks transactions as reconciled."
+      - working: "NA"
         agent: "main"
-        comment: "Added A/R and A/P aging reports with proper aging buckets (Current, 31-60, 61-90, Over 90 days). Reports provide comprehensive aging analysis."
+        comment: "Implemented bank transaction endpoints for creating, retrieving, and reconciling bank transactions."
+
+  - task: "Reconciliation API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested all reconciliation endpoints. POST /api/reconciliations creates reconciliations, GET /api/reconciliations retrieves them with proper filtering, GET /api/reconciliations/{id} gets specific reconciliations, PUT /api/reconciliations/{id} updates them, and POST /api/reconciliations/{id}/complete completes the reconciliation process."
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented reconciliation endpoints for creating, retrieving, updating, and completing bank reconciliations."
+
+  - task: "Bank Import API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested all bank import endpoints. POST /api/bank-import/csv/{account_id} imports CSV bank statements, POST /api/bank-import/qfx/{account_id} imports QFX/OFX bank statements, and POST /api/bank-import/confirm/{account_id} confirms the import of transactions."
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented bank import endpoints for importing bank statements in CSV and QFX/OFX formats and confirming the import of transactions."
+
+  - task: "Reconciliation Reports API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested the reconciliation report endpoint. GET /api/reports/reconciliation/{account_id} returns a comprehensive report with account information, reconciliations, and summary statistics."
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented reconciliation report endpoint for generating reports on account reconciliations."
 
   - task: "Advanced Payment Processing"
     implemented: true
