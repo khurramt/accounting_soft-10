@@ -1718,7 +1718,9 @@ async def get_cash_flow_projections(months: int = 12):
         "active": True
     }).to_list(100)
     
-    current_cash = sum(await calculate_account_balance(account["id"]) for account in cash_accounts)
+    current_cash = 0
+    for account in cash_accounts:
+        current_cash += await calculate_account_balance(account["id"])
     
     # Get receivables (invoices) 
     invoices = await db.transactions.find({
