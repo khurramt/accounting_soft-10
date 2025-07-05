@@ -204,11 +204,15 @@ class QBClonePhase4BackendTest(unittest.TestCase):
         logger.info(f"Retrieved custom field: {retrieved_field['label']}")
         
         # 4. Update custom field
-        update_data = {
-            "label": "Business Industry",
-            "options": ["Technology", "Healthcare", "Finance", "Education", "Retail", "Other"],
-            "default_value": "Technology"
-        }
+        # Get the current field first
+        response = requests.get(f"{BACKEND_URL}/custom-fields/{field['id']}")
+        current_field = response.json()
+        
+        # Update only specific fields
+        update_data = current_field.copy()
+        update_data["label"] = "Business Industry"
+        update_data["options"] = ["Technology", "Healthcare", "Finance", "Education", "Retail", "Other"]
+        update_data["default_value"] = "Technology"
         
         response = requests.put(f"{BACKEND_URL}/custom-fields/{field['id']}", json=update_data)
         self.assertEqual(response.status_code, 200)
