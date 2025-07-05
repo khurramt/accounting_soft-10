@@ -148,6 +148,79 @@ backend:
         comment: "All financial reports working correctly with proper calculations and balance validation."
       - working: "NA"
         agent: "main"
+        comment: "Implemented financial reporting system with Trial Balance, Balance Sheet, and Income Statement. Includes proper account categorization and period filtering."
+
+  - task: "Form Templates API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All Form Templates API endpoints are working correctly. Successfully tested POST /api/form-templates (create), GET /api/form-templates (list), GET /api/form-templates/{id} (retrieve), PUT /api/form-templates/{id} (update), POST /api/form-templates/{id}/set-default (set default), and DELETE /api/form-templates/{id} (delete)."
+  
+  - task: "Custom Fields API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All Custom Fields API endpoints are working correctly. Successfully tested POST /api/custom-fields (create), GET /api/custom-fields (list), GET /api/custom-fields/{id} (retrieve), PUT /api/custom-fields/{id} (update), and DELETE /api/custom-fields/{id} (delete)."
+  
+  - task: "Company Branding API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All Company Branding API endpoints are working correctly. Successfully tested POST /api/company-branding (create/update), GET /api/company-branding/{company_id} (retrieve), and POST /api/company-branding/{company_id}/upload-logo (upload logo)."
+  
+  - task: "Role & Permissions API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All Role & Permissions API endpoints are working correctly. Successfully tested POST /api/permissions (create), GET /api/permissions (list), POST /api/user-roles (create), GET /api/user-roles (list), GET /api/user-roles/{id} (retrieve), and PUT /api/user-roles/{id} (update)."
+  
+  - task: "Audit Log API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All Audit Log API endpoints are working correctly. Successfully tested POST /api/audit-log (create), GET /api/audit-log (list with filtering), and GET /api/audit-log/{resource_type}/{resource_id} (retrieve resource-specific logs)."
+  
+  - task: "Setup API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Setup API endpoint is working correctly. Successfully tested POST /api/setup/default-permissions (setup default permissions and roles)."
         comment: "Implemented trial balance, balance sheet, and income statement reports with proper accounting calculations and balance validation."
 
   - task: "Complete Backend Expansion - People & Lists"
