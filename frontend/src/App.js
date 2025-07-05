@@ -2982,12 +2982,7 @@ const BillsPage = ({ transactions, vendors, items, accounts, onRefresh }) => {
   );
 };
 
-const PayBillsPage = ({ vendors, transactions, accounts, onRefresh }) => (
-  <div>
-    <h2 className="text-2xl font-bold text-gray-900 mb-6">Pay Bills</h2>
-    <p className="text-gray-600">Bill payment functionality coming soon...</p>
-  </div>
-);
+
 
 const PurchaseOrdersPage = ({ transactions, vendors, items, onRefresh }) => (
   <div>
