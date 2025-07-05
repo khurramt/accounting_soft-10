@@ -742,6 +742,7 @@ async def create_transaction(transaction: TransactionCreate):
         "subtotal": subtotal,
         "tax_amount": tax_amount,
         "total": total,
+        "balance": total,  # Initial balance equals total
         "transaction_number": f"{transaction.transaction_type.value[:3].upper()}-{str(uuid.uuid4())[:8]}"
     })
     
