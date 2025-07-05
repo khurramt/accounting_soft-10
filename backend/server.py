@@ -2088,6 +2088,18 @@ async def get_reconciliation_report(account_id: str, start_date: str = None, end
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating reconciliation report: {str(e)}")
 
+# Add the router to the app
+app.include_router(api_router)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include the router in the main app
 app.include_router(api_router)
 
