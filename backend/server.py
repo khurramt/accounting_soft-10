@@ -359,10 +359,12 @@ class Transaction(BaseModel):
     tax_rate: float = 0.0
     tax_amount: float = 0.0
     total: float = 0.0
+    balance: Optional[float] = None  # For tracking unpaid amounts
     payment_method: Optional[PaymentMethod] = None
     deposit_to_account_id: Optional[str] = None
+    deposit_id: Optional[str] = None  # For tracking which deposit this payment is in
     memo: Optional[str] = None
-    status: str = "Open"  # Open, Paid, Voided, etc.
+    status: str = "Open"  # Open, Paid, Voided, Partial, Deposited, etc.
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
