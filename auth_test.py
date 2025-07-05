@@ -66,7 +66,8 @@ def test_authentication():
     
     # Verify session verification response
     assert verify_result["username"] == "testuser", "Username mismatch in session verification"
-    assert verify_result["active"] == True, "User should be active"
+    assert "user_id" in verify_result, "User ID not returned in session verification"
+    assert "role" in verify_result, "Role not returned in session verification"
     logger.info("Session verification successful")
     
     # 4. Logout
