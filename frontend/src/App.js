@@ -595,6 +595,7 @@ function App() {
         {/* Main Content */}
         <main className="flex-1 p-6">
           {currentPage === 'dashboard' && <EnhancedDashboard accounts={accounts} transactions={transactions} customers={customers} vendors={vendors} />}
+          {currentPage === 'interactive-dashboard' && <InteractiveDashboard />}
           {currentPage === 'accounts' && <AccountsPage accounts={accounts} onRefresh={fetchAccounts} />}
           {currentPage === 'customers' && <CustomerCenter customers={customers} terms={terms} onRefresh={fetchCustomers} />}
           {currentPage === 'vendors' && <VendorsPage vendors={vendors} terms={terms} onRefresh={fetchVendors} />}
