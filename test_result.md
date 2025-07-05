@@ -495,8 +495,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Advanced Payment Processing Frontend Forms"
-  stuck_tasks: []
+    - "Authentication API"
+  stuck_tasks:
+    - "Authentication API"
   test_all: false
   test_priority: "high_first"
 
