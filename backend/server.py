@@ -908,6 +908,259 @@ async def transfer_funds(
     
     return {"message": "Transfer completed successfully", "transfer_id": transfer_id}
 
+# Payment Processing Endpoints
+@api_router.post("/payments/receive")
+async def receive_payment(
+    customer_id: str,
+    payment_amount: float,
+    payment_method: PaymentMethod,
+    payment_date: datetime,
+    deposit_to_account_id: str,
+    invoice_applications: List[Dict[str, Any]] = [],
+    memo: Optional[str] = None
+):
+    """Apply payment to customer invoices"""
+    payment_id = str(uuid.uuid4())
+    
+    # Create payment transaction
+    payment_transaction = Transaction(
+        transaction_type=TransactionType.PAYMENT,
+        customer_id=customer_id,
+        date=payment_date,
+        payment_method=payment_method,
+        deposit_to_account_id=deposit_to_account_id,
+        total=payment_amount,
+        memo=memo,
+        transaction_number=f"PMT-{str(uuid.uuid4())[:8]}"
+    )
+    
+    await db.transactions.insert_one(payment_transaction.dict())
+    
+    # Apply payment to invoices
+    remaining_payment = payment_amount
+    for application in invoice_applications:
+        invoice_id = application.get("invoice_id")
+        applied_amount = min(application.get("amount", 0), remaining_payment)
+        
+        if applied_amount > 0:
+            # Update invoice status and remaining balance
+            invoice = await db.transactions.find_one({"id": invoice_id})
+            if invoice:
+                new_balance = invoice.get("balance", invoice["total"]) - applied_amount
+                await db.transactions.update_one(
+                    {"id": invoice_id}, 
+                    {"$set": {"balance": new_balance, "status": "Paid" if new_balance <= 0 else "Partial"}}
+                )
+                remaining_payment -= applied_amount
+    
+    # Create journal entries for payment
+    # Debit Bank/Undeposited Funds, Credit Accounts Receivable
+    deposit_account = await db.accounts.find_one({"id": deposit_to_account_id})
+    ar_account = await db.accounts.find_one({"detail_type": "Accounts Receivable"})
+    
+    if deposit_account:
+        await db.journal_entries.insert_one(JournalEntry(
+            transaction_id=payment_id,
+            account_id=deposit_to_account_id,
+            debit=payment_amount,
+            credit=0,
+            description=f"Payment received - {payment_transaction.transaction_number}",
+            date=payment_date
+        ).dict())
+    
+    if ar_account:
+        await db.journal_entries.insert_one(JournalEntry(
+            transaction_id=payment_id,
+            account_id=ar_account["id"],
+            debit=0,
+            credit=payment_amount,
+            description=f"Payment received - {payment_transaction.transaction_number}",
+            date=payment_date
+        ).dict())
+    
+    # Update customer balance
+    customer = await db.customers.find_one({"id": customer_id})
+    if customer:
+        new_balance = customer.get("balance", 0) - payment_amount
+        await db.customers.update_one({"id": customer_id}, {"$set": {"balance": new_balance}})
+    
+    return {"message": "Payment received successfully", "payment_id": payment_id}
+
+@api_router.post("/payments/pay-bills")
+async def pay_bills(
+    payment_date: datetime,
+    payment_account_id: str,
+    payment_method: PaymentMethod,
+    bill_payments: List[Dict[str, Any]],
+    memo: Optional[str] = None
+):
+    """Pay multiple vendor bills"""
+    payment_id = str(uuid.uuid4())
+    total_payment_amount = sum(bp.get("amount", 0) for bp in bill_payments)
+    
+    # Create payment transaction
+    payment_transaction = Transaction(
+        transaction_type=TransactionType.PAYMENT,
+        date=payment_date,
+        payment_method=payment_method,
+        deposit_to_account_id=payment_account_id,
+        total=total_payment_amount,
+        memo=memo,
+        transaction_number=f"BPM-{str(uuid.uuid4())[:8]}"
+    )
+    
+    await db.transactions.insert_one(payment_transaction.dict())
+    
+    # Process each bill payment
+    for bill_payment in bill_payments:
+        bill_id = bill_payment.get("bill_id")
+        payment_amount = bill_payment.get("amount", 0)
+        
+        # Update bill status
+        bill = await db.transactions.find_one({"id": bill_id})
+        if bill:
+            new_balance = bill.get("balance", bill["total"]) - payment_amount
+            await db.transactions.update_one(
+                {"id": bill_id}, 
+                {"$set": {"balance": new_balance, "status": "Paid" if new_balance <= 0 else "Partial"}}
+            )
+            
+            # Update vendor balance
+            vendor_id = bill.get("vendor_id")
+            if vendor_id:
+                vendor = await db.vendors.find_one({"id": vendor_id})
+                if vendor:
+                    new_vendor_balance = vendor.get("balance", 0) - payment_amount
+                    await db.vendors.update_one({"id": vendor_id}, {"$set": {"balance": new_vendor_balance}})
+    
+    # Create journal entries
+    # Credit Bank Account, Debit Accounts Payable
+    payment_account = await db.accounts.find_one({"id": payment_account_id})
+    ap_account = await db.accounts.find_one({"detail_type": "Accounts Payable"})
+    
+    if payment_account:
+        await db.journal_entries.insert_one(JournalEntry(
+            transaction_id=payment_id,
+            account_id=payment_account_id,
+            debit=0,
+            credit=total_payment_amount,
+            description=f"Bill payment - {payment_transaction.transaction_number}",
+            date=payment_date
+        ).dict())
+    
+    if ap_account:
+        await db.journal_entries.insert_one(JournalEntry(
+            transaction_id=payment_id,
+            account_id=ap_account["id"],
+            debit=total_payment_amount,
+            credit=0,
+            description=f"Bill payment - {payment_transaction.transaction_number}",
+            date=payment_date
+        ).dict())
+    
+    return {"message": "Bills paid successfully", "payment_id": payment_id}
+
+@api_router.post("/deposits")
+async def make_deposit(
+    deposit_date: datetime,
+    deposit_to_account_id: str,
+    payment_items: List[Dict[str, Any]],
+    memo: Optional[str] = None
+):
+    """Make bank deposit from undeposited funds"""
+    deposit_id = str(uuid.uuid4())
+    total_deposit = sum(item.get("amount", 0) for item in payment_items)
+    
+    # Create deposit transaction
+    deposit_transaction = Transaction(
+        transaction_type=TransactionType.DEPOSIT,
+        date=deposit_date,
+        deposit_to_account_id=deposit_to_account_id,
+        total=total_deposit,
+        memo=memo,
+        transaction_number=f"DEP-{str(uuid.uuid4())[:8]}"
+    )
+    
+    await db.transactions.insert_one(deposit_transaction.dict())
+    
+    # Create journal entries
+    # Debit Bank Account, Credit Undeposited Funds
+    bank_account = await db.accounts.find_one({"id": deposit_to_account_id})
+    undeposited_account = await db.accounts.find_one({"detail_type": "Undeposited Funds"})
+    
+    if bank_account:
+        await db.journal_entries.insert_one(JournalEntry(
+            transaction_id=deposit_id,
+            account_id=deposit_to_account_id,
+            debit=total_deposit,
+            credit=0,
+            description=f"Bank deposit - {deposit_transaction.transaction_number}",
+            date=deposit_date
+        ).dict())
+    
+    if undeposited_account:
+        await db.journal_entries.insert_one(JournalEntry(
+            transaction_id=deposit_id,
+            account_id=undeposited_account["id"],
+            debit=0,
+            credit=total_deposit,
+            description=f"Bank deposit - {deposit_transaction.transaction_number}",
+            date=deposit_date
+        ).dict())
+    
+    # Mark deposited items as deposited
+    for item in payment_items:
+        payment_id = item.get("payment_id")
+        if payment_id:
+            await db.transactions.update_one(
+                {"id": payment_id},
+                {"$set": {"status": "Deposited", "deposit_id": deposit_id}}
+            )
+    
+    return {"message": "Deposit completed successfully", "deposit_id": deposit_id}
+
+@api_router.get("/customers/{customer_id}/open-invoices")
+async def get_customer_open_invoices(customer_id: str):
+    """Get all open invoices for a customer"""
+    invoices = await db.transactions.find({
+        "customer_id": customer_id,
+        "transaction_type": "Invoice",
+        "status": {"$in": ["Open", "Partial"]}
+    }).to_list(1000)
+    
+    # Calculate remaining balance for each invoice
+    for invoice in invoices:
+        if "balance" not in invoice:
+            invoice["balance"] = invoice["total"]
+    
+    return invoices
+
+@api_router.get("/vendors/{vendor_id}/open-bills")
+async def get_vendor_open_bills(vendor_id: str):
+    """Get all open bills for a vendor"""
+    bills = await db.transactions.find({
+        "vendor_id": vendor_id,
+        "transaction_type": "Bill",
+        "status": {"$in": ["Open", "Partial"]}
+    }).to_list(1000)
+    
+    # Calculate remaining balance for each bill
+    for bill in bills:
+        if "balance" not in bill:
+            bill["balance"] = bill["total"]
+    
+    return bills
+
+@api_router.get("/payments/undeposited")
+async def get_undeposited_payments():
+    """Get all payments in undeposited funds"""
+    payments = await db.transactions.find({
+        "transaction_type": "Payment",
+        "status": {"$ne": "Deposited"}
+    }).to_list(1000)
+    
+    return payments
+
 # Reports endpoints
 @api_router.get("/reports/trial-balance")
 async def get_trial_balance():
