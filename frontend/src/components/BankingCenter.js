@@ -7,9 +7,15 @@ const API = `${BACKEND_URL}/api`;
 
 const BankingCenter = ({ accounts, transactions, onRefresh }) => {
   const [selectedAccount, setSelectedAccount] = useState(null);
-  const [bankFeeds, setBankFeeds] = useState([]);
+  const [bankTransactions, setBankTransactions] = useState([]);
+  const [reconciliations, setReconciliations] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
-  const [reconciliationData, setReconciliationData] = useState(null);
+  const [currentReconciliation, setCurrentReconciliation] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showReconcileModal, setShowReconcileModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importPreview, setImportPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const bankAccounts = accounts.filter(acc => 
     acc.detail_type === 'Checking' || 
@@ -19,41 +25,129 @@ const BankingCenter = ({ accounts, transactions, onRefresh }) => {
 
   useEffect(() => {
     if (selectedAccount) {
-      fetchBankFeeds();
+      fetchBankTransactions();
+      fetchReconciliations();
     }
   }, [selectedAccount]);
 
-  const fetchBankFeeds = async () => {
+  const fetchBankTransactions = async () => {
     try {
-      // Simulated bank feed data - in real implementation, this would connect to banks
-      setBankFeeds([
-        {
-          id: '1',
-          date: '2024-01-15',
-          description: 'ELECTRONIC DEPOSIT - PAYROLL',
-          amount: 2500.00,
-          type: 'credit',
-          status: 'unmatched'
-        },
-        {
-          id: '2',
-          date: '2024-01-14',
-          description: 'CHECK #1001 - OFFICE SUPPLIES',
-          amount: -150.00,
-          type: 'debit',
-          status: 'matched'
-        },
-        {
-          id: '3',
-          date: '2024-01-13',
-          description: 'AUTOMATIC PAYMENT - UTILITIES',
-          amount: -200.00,
-          type: 'debit',
-          status: 'unmatched'
-        }
-      ]);
+      const response = await axios.get(`${API}/bank-transactions?account_id=${selectedAccount.id}`);
+      setBankTransactions(response.data);
     } catch (error) {
-      console.error('Error fetching bank feeds:', error);
+      console.error('Error fetching bank transactions:', error);
+    }
+  };
+
+  const fetchReconciliations = async () => {
+    try {
+      const response = await axios.get(`${API}/reconciliations?account_id=${selectedAccount.id}`);
+      setReconciliations(response.data);
+    } catch (error) {
+      console.error('Error fetching reconciliations:', error);
+    }
+  };
+
+  const handleFileImport = async (fileType) => {
+    if (!importFile || !selectedAccount) return;
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+
+      const endpoint = fileType === 'csv' 
+        ? `${API}/bank-import/csv/${selectedAccount.id}` 
+        : `${API}/bank-import/qfx/${selectedAccount.id}`;
+
+      const response = await axios.post(endpoint, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setImportPreview(response.data);
+    } catch (error) {
+      console.error('Error importing file:', error);
+      alert('Error importing file: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!importPreview || !selectedAccount) return;
+
+    setLoading(true);
+    try {
+      await axios.post(`${API}/bank-import/confirm/${selectedAccount.id}`, 
+        importPreview.preview_transactions);
+      
+      setImportPreview(null);
+      setImportFile(null);
+      setShowImportModal(false);
+      fetchBankTransactions();
+      alert('Transactions imported successfully!');
+    } catch (error) {
+      console.error('Error confirming import:', error);
+      alert('Error importing transactions: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startReconciliation = async (formData) => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API}/reconciliations`, {
+        account_id: selectedAccount.id,
+        statement_date: new Date(formData.statement_date),
+        statement_ending_balance: parseFloat(formData.ending_balance),
+        notes: formData.notes
+      });
+
+      setCurrentReconciliation(response.data);
+      setShowReconcileModal(false);
+      setActiveTab('reconcile');
+      fetchReconciliations();
+    } catch (error) {
+      console.error('Error starting reconciliation:', error);
+      alert('Error starting reconciliation: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleTransactionReconciled = async (transactionId, reconciled) => {
+    try {
+      if (reconciled && currentReconciliation) {
+        await axios.put(`${API}/bank-transactions/${transactionId}/reconcile`, null, {
+          params: { reconciliation_id: currentReconciliation.id }
+        });
+      } else {
+        await axios.put(`${API}/bank-transactions/${transactionId}/reconcile`, null, {
+          params: { reconciliation_id: null }
+        });
+      }
+      fetchBankTransactions();
+    } catch (error) {
+      console.error('Error updating transaction reconciliation:', error);
+    }
+  };
+
+  const completeReconciliation = async () => {
+    if (!currentReconciliation) return;
+
+    setLoading(true);
+    try {
+      await axios.post(`${API}/reconciliations/${currentReconciliation.id}/complete`);
+      setCurrentReconciliation(null);
+      fetchReconciliations();
+      fetchBankTransactions();
+      alert('Reconciliation completed successfully!');
+    } catch (error) {
+      console.error('Error completing reconciliation:', error);
+      alert('Error completing reconciliation: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setLoading(false);
     }
   };
 
