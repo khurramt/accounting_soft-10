@@ -539,9 +539,9 @@ class QBClonePhase4FeaturesTest(unittest.TestCase):
                 "user_id": str(uuid.uuid4()),
                 "action": "update",
                 "resource_type": "custom_field",
-                "resource_id": self.custom_fields["customer_industry"]["id"],
-                "old_values": {"label": "Industry"},
-                "new_values": {"label": "Business Sector"},
+                "resource_id": field_id,
+                "old_values": {"label": "Audit Test Field"},
+                "new_values": {"label": "Updated Audit Test Field"},
                 "ip_address": "192.168.1.101",
                 "user_agent": "Chrome/91.0"
             },
