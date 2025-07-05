@@ -1997,7 +1997,9 @@ async def get_dashboard_metrics():
         "active": True
     }).to_list(100)
     
-    total_cash = sum(await calculate_account_balance(account["id"]) for account in cash_accounts)
+    total_cash = 0
+    for account in cash_accounts:
+        total_cash += await calculate_account_balance(account["id"])
     
     # Get A/R and A/P
     ar_account = await db.accounts.find_one({"detail_type": "Accounts Receivable"})
