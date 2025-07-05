@@ -517,6 +517,7 @@ class User(BaseModel):
     username: str
     full_name: str
     email: Optional[str] = None
+    password_hash: str  # Store hashed password
     role: str = "User"
     active: bool = True
     last_login: Optional[datetime] = None
