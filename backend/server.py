@@ -536,6 +536,192 @@ class RoleCreate(BaseModel):
     name: str
     permissions: Dict[str, Any] = {}
 
+# Phase 4: Form Customization Models
+class CustomFieldType(str, Enum):
+    TEXT = "text"
+    NUMBER = "number"
+    DATE = "date"
+    DROPDOWN = "dropdown"
+    CHECKBOX = "checkbox"
+    TEXTAREA = "textarea"
+
+class CustomField(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    label: str
+    field_type: CustomFieldType
+    required: bool = False
+    options: List[str] = []  # For dropdown type
+    default_value: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CustomFieldCreate(BaseModel):
+    name: str
+    label: str
+    field_type: CustomFieldType
+    required: bool = False
+    options: List[str] = []
+    default_value: Optional[str] = None
+
+class FormTemplate(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    template_type: str  # "invoice", "estimate", "sales_receipt", etc.
+    is_default: bool = False
+    
+    # Header Section
+    header_layout: Dict[str, Any] = {}
+    show_logo: bool = True
+    logo_position: str = "left"  # "left", "right", "center"
+    
+    # Company Information
+    show_company_info: bool = True
+    company_info_position: str = "top-right"
+    
+    # Customer Information
+    show_customer_info: bool = True
+    customer_info_position: str = "top-left"
+    
+    # Line Items
+    line_items_columns: List[str] = ["description", "quantity", "rate", "amount"]
+    show_line_item_numbers: bool = True
+    
+    # Totals Section
+    show_subtotal: bool = True
+    show_tax: bool = True
+    show_total: bool = True
+    totals_position: str = "bottom-right"
+    
+    # Footer Section
+    footer_text: Optional[str] = None
+    show_terms: bool = True
+    show_memo: bool = True
+    
+    # Custom Fields
+    custom_fields: List[CustomField] = []
+    
+    # Styling
+    primary_color: str = "#3B82F6"
+    secondary_color: str = "#F3F4F6"
+    font_family: str = "Inter"
+    font_size: str = "12px"
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class FormTemplateCreate(BaseModel):
+    name: str
+    template_type: str
+    is_default: bool = False
+    header_layout: Dict[str, Any] = {}
+    show_logo: bool = True
+    logo_position: str = "left"
+    show_company_info: bool = True
+    company_info_position: str = "top-right"
+    show_customer_info: bool = True
+    customer_info_position: str = "top-left"
+    line_items_columns: List[str] = ["description", "quantity", "rate", "amount"]
+    show_line_item_numbers: bool = True
+    show_subtotal: bool = True
+    show_tax: bool = True
+    show_total: bool = True
+    totals_position: str = "bottom-right"
+    footer_text: Optional[str] = None
+    show_terms: bool = True
+    show_memo: bool = True
+    custom_fields: List[CustomField] = []
+    primary_color: str = "#3B82F6"
+    secondary_color: str = "#F3F4F6"
+    font_family: str = "Inter"
+    font_size: str = "12px"
+
+class CompanyBranding(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    company_id: str
+    logo_base64: Optional[str] = None
+    logo_filename: Optional[str] = None
+    logo_mime_type: Optional[str] = None
+    company_name: str
+    tagline: Optional[str] = None
+    primary_color: str = "#3B82F6"
+    secondary_color: str = "#F3F4F6"
+    font_family: str = "Inter"
+    letterhead_template: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CompanyBrandingCreate(BaseModel):
+    company_id: str
+    logo_base64: Optional[str] = None
+    logo_filename: Optional[str] = None
+    logo_mime_type: Optional[str] = None
+    company_name: str
+    tagline: Optional[str] = None
+    primary_color: str = "#3B82F6"
+    secondary_color: str = "#F3F4F6"
+    font_family: str = "Inter"
+    letterhead_template: Optional[str] = None
+
+# Phase 4: User Management & Security Models
+class Permission(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: str
+    module: str  # "accounts", "customers", "transactions", etc.
+    actions: List[str] = []  # ["create", "read", "update", "delete"]
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class PermissionCreate(BaseModel):
+    name: str
+    description: str
+    module: str
+    actions: List[str] = []
+
+class UserRole(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: str
+    permissions: List[str] = []  # Permission IDs
+    is_admin: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class UserRoleCreate(BaseModel):
+    name: str
+    description: str
+    permissions: List[str] = []
+    is_admin: bool = False
+
+class UserSession(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    session_token: str
+    expires_at: datetime
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_activity: datetime = Field(default_factory=datetime.utcnow)
+
+class AuditLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    action: str
+    resource_type: str
+    resource_id: str
+    old_values: Optional[Dict[str, Any]] = None
+    new_values: Optional[Dict[str, Any]] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+class AuditLogCreate(BaseModel):
+    user_id: str
+    action: str
+    resource_type: str
+    resource_id: str
+    old_values: Optional[Dict[str, Any]] = None
+    new_values: Optional[Dict[str, Any]] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+
 # Company endpoints
 @api_router.post("/company", response_model=Company)
 async def create_company(company: CompanyCreate):
