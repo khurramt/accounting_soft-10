@@ -251,17 +251,21 @@ class QBClonePaymentProcessingTest(unittest.TestCase):
             "payment_method": "Check",
             "payment_date": datetime.utcnow().isoformat(),
             "deposit_to_account_id": self.accounts["Undeposited Funds"]["id"],
-            "invoice_applications": [
-                {
-                    "invoice_id": invoice["id"],
-                    "amount": invoice["total"]
-                }
-            ],
             "memo": f"Payment from {customer_name}"
         }
         
+        # Add invoice application as a separate parameter
+        invoice_application = {
+            "invoice_id": invoice["id"],
+            "amount": invoice["total"]
+        }
+        
         # Send payment request
-        response = requests.post(f"{BACKEND_URL}/payments/receive", params=payment_data)
+        response = requests.post(
+            f"{BACKEND_URL}/payments/receive", 
+            params=payment_data,
+            json=[invoice_application]
+        )
         self.assertEqual(response.status_code, 200, "Failed to receive payment")
         
         payment_result = response.json()
