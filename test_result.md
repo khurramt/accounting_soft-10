@@ -196,7 +196,7 @@ backend:
     status_history:
       - working: true
         agent: "testing"
-        comment: "All advanced payment processing endpoints are now working correctly. Successfully tested: receive payments, pay bills, deposits, open invoices, open bills, and undeposited payments. The MongoDB ObjectId serialization issues have been fixed."
+        comment: "MongoDB ObjectId serialization issue successfully fixed. All payment processing endpoints now working correctly. Tested receive payments, pay bills, deposits, and all supporting endpoints. All returning 200 status codes with proper JSON serialization."
       - working: false
         agent: "testing"
         comment: "Advanced payment processing endpoints have MongoDB ObjectId serialization issues. The endpoints are implemented but return 500 errors when tested. The journal entry endpoint works correctly, but the payment endpoints (receive payments, pay bills, deposits) and supporting endpoints (open invoices, open bills, undeposited payments) need to be fixed to handle MongoDB ObjectId serialization properly."
