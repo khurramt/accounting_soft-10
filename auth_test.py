@@ -12,7 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Get the backend URL
-BACKEND_URL = "https://3358b22c-e36b-4508-a104-1bb982922bba.preview.emergentagent.com/api"
+BACKEND_URL = "https://dcebb859-d3a0-4791-bac5-696ddf89516c.preview.emergentagent.com/api"
 
 def test_authentication():
     """Test the authentication flow: create user, login, verify session, logout"""
