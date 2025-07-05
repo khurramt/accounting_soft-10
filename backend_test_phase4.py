@@ -110,11 +110,15 @@ class QBClonePhase4BackendTest(unittest.TestCase):
         logger.info(f"Retrieved form template: {retrieved_template['name']}")
         
         # 4. Update template
-        update_data = {
-            "name": "Updated Invoice Template",
-            "primary_color": "#3366CC",
-            "footer_text": "Updated footer text"
-        }
+        # Get the current template first
+        response = requests.get(f"{BACKEND_URL}/form-templates/{template['id']}")
+        current_template = response.json()
+        
+        # Update only specific fields
+        update_data = current_template.copy()
+        update_data["name"] = "Updated Invoice Template"
+        update_data["primary_color"] = "#3366CC"
+        update_data["footer_text"] = "Updated footer text"
         
         response = requests.put(f"{BACKEND_URL}/form-templates/{template['id']}", json=update_data)
         self.assertEqual(response.status_code, 200)
