@@ -43,10 +43,40 @@ const ReportsCenter = () => {
           icon: '💰'
         },
         { 
-          id: 'cash-flow', 
-          name: 'Cash Flow Statement', 
-          description: 'Shows cash inflows and outflows',
+          id: 'cash-flow-projections', 
+          name: 'Cash Flow Projections', 
+          description: 'Projects future cash flows based on receivables and payables',
           icon: '💧'
+        }
+      ]
+    },
+    enhanced: {
+      name: 'Enhanced Analytics',
+      icon: '🔍',
+      reports: [
+        { 
+          id: 'profit-loss-by-class', 
+          name: 'P&L by Class', 
+          description: 'Profit & Loss report segmented by class for detailed analysis',
+          icon: '📊'
+        },
+        { 
+          id: 'profit-loss-by-location', 
+          name: 'P&L by Location', 
+          description: 'Profit & Loss report segmented by location for performance tracking',
+          icon: '📍'
+        },
+        { 
+          id: 'dashboard-metrics', 
+          name: 'Dashboard Analytics', 
+          description: 'Real-time KPIs and business intelligence metrics',
+          icon: '📈'
+        },
+        { 
+          id: 'kpi-trends', 
+          name: 'KPI Trends', 
+          description: 'Historical trends and performance indicators over time',
+          icon: '📉'
         }
       ]
     },
@@ -65,6 +95,12 @@ const ReportsCenter = () => {
           name: 'A/R Aging Summary', 
           description: 'Shows outstanding customer balances by age',
           icon: '📅'
+        },
+        { 
+          id: 'ar-aging-details', 
+          name: 'A/R Aging Details', 
+          description: 'Detailed customer aging with drill-down capabilities',
+          icon: '🔍'
         },
         { 
           id: 'customer-balance', 
@@ -95,6 +131,12 @@ const ReportsCenter = () => {
           name: 'A/P Aging Summary', 
           description: 'Shows outstanding vendor balances by age',
           icon: '📋'
+        },
+        { 
+          id: 'ap-aging-details', 
+          name: 'A/P Aging Details', 
+          description: 'Detailed vendor aging with drill-down capabilities',
+          icon: '🔍'
         },
         { 
           id: 'vendor-balance', 
