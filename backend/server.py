@@ -726,6 +726,27 @@ class AuditLogCreate(BaseModel):
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
 
+# Security configuration
+security = HTTPBearer()
+
+# Password hashing utilities
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt"""
+    password_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
+
+def verify_password(password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash"""
+    password_bytes = password.encode('utf-8')
+    hashed_bytes = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(password_bytes, hashed_bytes)
+
+def generate_session_token() -> str:
+    """Generate a secure session token"""
+    return secrets.token_urlsafe(32)
+
 # Company endpoints
 @api_router.post("/company", response_model=Company)
 async def create_company(company: CompanyCreate):
