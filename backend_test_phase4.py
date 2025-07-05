@@ -494,16 +494,20 @@ class QBClonePhase4BackendTest(unittest.TestCase):
         logger.info(f"Retrieved user role: {retrieved_role['name']}")
         
         # 6. Update role
-        update_data = {
-            "name": "Senior Accountant",
-            "description": "Senior accounting staff with additional permissions",
-            "permissions": [
-                self.permissions["accounts_view"]["id"],
-                self.permissions["accounts_edit"]["id"],
-                self.permissions["transactions_view"]["id"],
-                self.permissions["transactions_edit"]["id"]
-            ]
-        }
+        # Get the current role first
+        response = requests.get(f"{BACKEND_URL}/user-roles/{role['id']}")
+        current_role = response.json()
+        
+        # Update only specific fields
+        update_data = current_role.copy()
+        update_data["name"] = "Senior Accountant"
+        update_data["description"] = "Senior accounting staff with additional permissions"
+        update_data["permissions"] = [
+            self.permissions["accounts_view"]["id"],
+            self.permissions["accounts_edit"]["id"],
+            self.permissions["transactions_view"]["id"],
+            self.permissions["transactions_edit"]["id"]
+        ]
         
         response = requests.put(f"{BACKEND_URL}/user-roles/{role['id']}", json=update_data)
         self.assertEqual(response.status_code, 200)
