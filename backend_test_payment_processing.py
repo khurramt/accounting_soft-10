@@ -261,7 +261,7 @@ class QBClonePaymentProcessingTest(unittest.TestCase):
         }
         
         # Send payment request
-        response = requests.post(f"{BACKEND_URL}/payments/receive", params=payment_data)
+        response = requests.post(f"{BACKEND_URL}/payments/receive", json=payment_data)
         self.assertEqual(response.status_code, 200, "Failed to receive payment")
         
         payment_result = response.json()
