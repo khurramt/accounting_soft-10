@@ -186,6 +186,21 @@ backend:
         agent: "main"
         comment: "Added A/R and A/P aging reports with proper aging buckets (Current, 31-60, 61-90, Over 90 days). Reports provide comprehensive aging analysis."
 
+  - task: "Advanced Payment Processing"
+    implemented: true
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "Advanced payment processing endpoints have MongoDB ObjectId serialization issues. The endpoints are implemented but return 500 errors when tested. The journal entry endpoint works correctly, but the payment endpoints (receive payments, pay bills, deposits) and supporting endpoints (open invoices, open bills, undeposited payments) need to be fixed to handle MongoDB ObjectId serialization properly."
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented advanced payment processing endpoints including receive payments, pay bills, deposits, and supporting endpoints for open invoices, open bills, and undeposited payments."
+
 frontend:
   - task: "Main Dashboard with Navigation"
     implemented: true
@@ -271,16 +286,14 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "2.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: true
 
 test_plan:
   current_focus:
-    - "Complete Backend Expansion - People & Lists"
-    - "Advanced Transaction Types & Banking"
-    - "Enhanced Reporting & A/R-A/P Aging"
-    - "Comprehensive Navigation & UI Structure"
-  stuck_tasks: []
+    - "Advanced Payment Processing"
+  stuck_tasks:
+    - "Advanced Payment Processing"
   test_all: false
   test_priority: "high_first"
 
@@ -289,3 +302,5 @@ agent_communication:
     message: "Successfully completed comprehensive expansion of QBClone accounting application. Backend now includes all required models and endpoints for complete accounting software functionality including Employees, Items, advanced transaction types, banking operations, and enhanced reporting. Frontend provides professional UI structure with organized navigation and framework for all screens. Application demonstrates full accounting software capabilities with proper double-entry bookkeeping system."
   - agent: "main"
     message: "Starting comprehensive implementation of all QuickBooks Desktop functionality in 5 phases: Phase 1 (Welcome Wizard & Core UI), Phase 2 (Complete Transaction Forms), Phase 3 (Banking & Reconciliation), Phase 4 (Advanced Features), Phase 5 (Professional Features). Implementing sleek, modern design throughout."
+  - agent: "testing"
+    message: "Tested advanced payment processing endpoints. Found MongoDB ObjectId serialization issues in payment-related endpoints. The journal entry endpoint works correctly, but the payment endpoints (receive payments, pay bills, deposits) and supporting endpoints (open invoices, open bills, undeposited payments) return 500 errors due to MongoDB ObjectId serialization issues. These endpoints need to be fixed to handle MongoDB ObjectId serialization properly."
