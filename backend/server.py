@@ -568,7 +568,12 @@ async def create_customer(customer: CustomerCreate):
 @api_router.get("/customers", response_model=List[Customer])
 async def get_customers():
     customers = await db.customers.find({"active": True}).to_list(1000)
-    return [Customer(**customer) for customer in customers]
+    result = []
+    for customer in customers:
+        if "_id" in customer:
+            del customer["_id"]
+        result.append(Customer(**customer))
+    return result
 
 @api_router.get("/customers/{customer_id}", response_model=Customer)
 async def get_customer(customer_id: str):
