@@ -398,44 +398,100 @@ const BankingCenter = ({ accounts, transactions, onRefresh }) => {
 
         {activeTab === 'reconcile' && (
           <div className="space-y-6">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="text-lg font-semibold text-blue-900 mb-2">Account Reconciliation</h4>
-              <p className="text-blue-700 text-sm mb-4">
-                Reconcile your account with your bank statement to ensure accuracy.
-              </p>
-              
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-blue-700 mb-1">
-                    Statement Ending Date
-                  </label>
-                  <input
-                    type="date"
-                    className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+            {currentReconciliation ? (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h4 className="text-lg font-semibold text-blue-900">Active Reconciliation</h4>
+                    <p className="text-blue-700 text-sm">
+                      Statement Date: {new Date(currentReconciliation.statement_date).toLocaleDateString()}
+                    </p>
+                    <p className="text-blue-700 text-sm">
+                      Statement Balance: ${currentReconciliation.statement_ending_balance.toLocaleString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={completeReconciliation}
+                    disabled={loading}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Processing...' : 'Complete Reconciliation'}
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-blue-700 mb-1">
-                    Ending Balance
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="bg-white p-3 rounded">
+                    <div className="text-lg font-semibold text-gray-900">
+                      ${currentReconciliation.reconciled_balance.toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-600">Reconciled Balance</div>
+                  </div>
+                  <div className="bg-white p-3 rounded">
+                    <div className="text-lg font-semibold text-gray-900">
+                      ${currentReconciliation.difference.toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-600">Difference</div>
+                  </div>
+                  <div className="bg-white p-3 rounded">
+                    <div className="text-lg font-semibold text-gray-900">
+                      {bankTransactions.filter(t => t.reconciled).length}
+                    </div>
+                    <div className="text-sm text-gray-600">Reconciled Items</div>
+                  </div>
                 </div>
               </div>
-              
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Start Reconciliation
-              </button>
-            </div>
+            ) : (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="text-lg font-semibold text-blue-900 mb-2">Start New Reconciliation</h4>
+                <p className="text-blue-700 text-sm mb-4">
+                  Reconcile your account with your bank statement to ensure accuracy.
+                </p>
+                <button 
+                  onClick={() => setShowReconcileModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Start Reconciliation
+                </button>
+              </div>
+            )}
 
             <div>
               <h4 className="text-lg font-semibold text-gray-900 mb-3">Reconciliation History</h4>
-              <div className="bg-gray-50 p-8 rounded-lg text-center text-gray-500">
-                No previous reconciliations found
+              <div className="space-y-2">
+                {reconciliations.map((reconciliation) => (
+                  <div key={reconciliation.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {new Date(reconciliation.statement_date).toLocaleDateString()}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Statement Balance: ${reconciliation.statement_ending_balance.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        reconciliation.status === 'Completed' 
+                          ? 'bg-green-100 text-green-800' 
+                          : reconciliation.status === 'Discrepancy'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {reconciliation.status}
+                      </span>
+                      {reconciliation.difference !== 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Difference: ${Math.abs(reconciliation.difference).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {reconciliations.length === 0 && (
+                  <div className="bg-gray-50 p-8 rounded-lg text-center text-gray-500">
+                    No previous reconciliations found
+                  </div>
+                )}
               </div>
             </div>
           </div>
