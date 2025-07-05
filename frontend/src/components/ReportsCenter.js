@@ -205,9 +205,67 @@ const ReportsCenter = () => {
   const loadReport = async (reportId) => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/reports/${reportId}`, {
-        params: filters
-      });
+      let response;
+      
+      // Handle different report types and their API endpoints
+      switch (reportId) {
+        case 'trial-balance':
+        case 'balance-sheet':
+        case 'income-statement':
+        case 'ar-aging':
+        case 'ap-aging':
+          response = await axios.get(`${API}/reports/${reportId}`, {
+            params: filters
+          });
+          break;
+        
+        case 'cash-flow-projections':
+          response = await axios.get(`${API}/reports/cash-flow-projections?months=12`);
+          break;
+        
+        case 'profit-loss-by-class':
+          response = await axios.get(`${API}/reports/profit-loss-by-class`, {
+            params: {
+              start_date: filters.dateFrom,
+              end_date: filters.dateTo
+            }
+          });
+          break;
+        
+        case 'profit-loss-by-location':
+          response = await axios.get(`${API}/reports/profit-loss-by-location`, {
+            params: {
+              start_date: filters.dateFrom,
+              end_date: filters.dateTo
+            }
+          });
+          break;
+        
+        case 'dashboard-metrics':
+          response = await axios.get(`${API}/analytics/dashboard-metrics`);
+          break;
+        
+        case 'kpi-trends':
+          response = await axios.get(`${API}/analytics/kpi-trends?period=12months`);
+          break;
+        
+        case 'ar-aging-details':
+          // This will show a customer selection interface first
+          setReportData({ type: 'customer-selection', customers: [] });
+          return;
+        
+        case 'ap-aging-details':
+          // This will show a vendor selection interface first
+          setReportData({ type: 'vendor-selection', vendors: [] });
+          return;
+        
+        default:
+          // For other reports, use the generic endpoint
+          response = await axios.get(`${API}/reports/${reportId}`, {
+            params: filters
+          });
+      }
+      
       setReportData(response.data);
     } catch (error) {
       console.error('Error loading report:', error);
