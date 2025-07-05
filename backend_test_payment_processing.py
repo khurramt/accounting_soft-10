@@ -309,7 +309,7 @@ class QBClonePaymentProcessingTest(unittest.TestCase):
         }
         
         # Send bill payment request
-        response = requests.post(f"{BACKEND_URL}/payments/pay-bills", json=bill_payment_data)
+        response = requests.post(f"{BACKEND_URL}/payments/pay-bills", params=bill_payment_data)
         self.assertEqual(response.status_code, 200, "Failed to pay bills")
         
         payment_result = response.json()
