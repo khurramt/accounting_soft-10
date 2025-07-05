@@ -282,19 +282,14 @@ class QBClonePhase4BackendTest(unittest.TestCase):
         img[:,:,0] = 255  # Red
         img[:50,:,1] = 255  # Yellow top half
         
-        # Convert to PIL Image and then to base64
+        # Convert to PIL Image and save to a file
         pil_img = Image.fromarray(img.astype('uint8'))
-        buffer = BytesIO()
-        pil_img.save(buffer, format="PNG")
-        img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        pil_img.save("/tmp/test_logo.png")
         
-        logo_data = {
-            "logo_base64": img_str,
-            "logo_filename": "test_logo.png",
-            "logo_mime_type": "image/png"
-        }
-        
-        response = requests.post(f"{BACKEND_URL}/company-branding/{company_id}/upload-logo", json=logo_data)
+        # Upload the file
+        with open("/tmp/test_logo.png", "rb") as f:
+            files = {"file": ("test_logo.png", f, "image/png")}
+            response = requests.post(f"{BACKEND_URL}/company-branding/{company_id}/upload-logo", files=files)
         self.assertEqual(response.status_code, 200)
         logo_result = response.json()
         self.assertIn("message", logo_result)
