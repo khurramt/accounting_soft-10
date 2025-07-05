@@ -650,8 +650,19 @@ class QBCloneAdvancedPaymentTest(unittest.TestCase):
             "memo": "Deposit of customer payments"
         }
         
-        # Submit deposit
-        response = requests.post(f"{BACKEND_URL}/deposits", params=deposit_data)
+        # Submit deposit - convert to query parameters
+        query_params = {
+            "deposit_date": deposit_data["deposit_date"],
+            "deposit_to_account_id": deposit_data["deposit_to_account_id"],
+            "memo": deposit_data["memo"]
+        }
+        
+        # Add payment items as separate parameters
+        for i, item in enumerate(deposit_data["payment_items"]):
+            query_params[f"payment_items[{i}][payment_id]"] = item["payment_id"]
+            query_params[f"payment_items[{i}][amount]"] = item["amount"]
+        
+        response = requests.post(f"{BACKEND_URL}/deposits", params=query_params)
         self.assertEqual(response.status_code, 200)
         deposit_result = response.json()
         
