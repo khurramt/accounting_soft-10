@@ -120,6 +120,51 @@ backend:
         agent: "main"
         comment: "Implemented full accounting backend with Account, Customer, Vendor, Transaction models and double-entry bookkeeping system. Includes journal entries, balance calculations, and financial reports (Trial Balance, Balance Sheet, Income Statement)."
 
+  - task: "Phase 5 Advanced Business Logic - Inventory Management"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested all inventory management features including FIFO/LIFO/Average costing methods, inventory adjustments with multiple types, automatic reorder alerts, and inventory valuation reports. All APIs working correctly with proper business logic implementation."
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented comprehensive inventory management system with FIFO/LIFO/Average costing methods, inventory adjustments (shrinkage, damaged, correction, recount, obsolete, transfer), automatic reorder point alerts, inventory transactions tracking, and inventory valuation reports."
+
+  - task: "Phase 5 Advanced Business Logic - Payroll & HR"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested all payroll and HR features including pay periods management, time entries with automatic overtime calculation, payroll processing with comprehensive tax calculations (federal, state, FICA), pay stub generation with detailed breakdowns, tax rate management, and payroll summary reports. All business logic calculations working correctly."
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented comprehensive payroll and HR system with pay periods, time tracking with overtime calculations, payroll processing with federal/state/FICA tax calculations, pay stub generation with YTD totals, tax rate management, and detailed payroll reporting."
+
+  - task: "Enhanced Item Model with Advanced Inventory Features"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Enhanced Item model working correctly with new fields: costing_method, min_stock_level, max_stock_level, average_cost, last_cost. All inventory costing methods (FIFO, LIFO, Average) implemented and tested successfully."
+      - working: "NA"
+        agent: "main"
+        comment: "Enhanced existing Item model with advanced inventory management fields including costing methods, stock levels, and cost tracking for comprehensive inventory management."
+
   - task: "Transaction Management with Double-Entry Bookkeeping"
     implemented: true
     working: true
