@@ -674,9 +674,33 @@ class QBClonePhase5Test(unittest.TestCase):
         """Test payroll processing with tax calculations"""
         logger.info("Testing Payroll Processing...")
         
+        # Create pay periods first if not already created
+        if not self.pay_periods:
+            pay_period_data = [
+                {
+                    "period_type": "Bi-weekly",
+                    "start_date": (datetime.utcnow() - timedelta(days=14)).isoformat(),
+                    "end_date": (datetime.utcnow() - timedelta(days=1)).isoformat(),
+                    "pay_date": (datetime.utcnow() + timedelta(days=5)).isoformat()
+                },
+                {
+                    "period_type": "Bi-weekly",
+                    "start_date": datetime.utcnow().isoformat(),
+                    "end_date": (datetime.utcnow() + timedelta(days=13)).isoformat(),
+                    "pay_date": (datetime.utcnow() + timedelta(days=19)).isoformat()
+                }
+            ]
+            
+            for period in pay_period_data:
+                response = requests.post(f"{BACKEND_URL}/pay-periods", json=period)
+                self.assertEqual(response.status_code, 200)
+                period_obj = response.json()
+                self.pay_periods[period_obj["id"]] = period_obj
+                logger.info(f"Created pay period: {period_obj['id']}")
+        
         # Get an employee and pay period
         employee = self.employees["John Smith"]
-        pay_period_id = list(self.pay_periods.keys())[1]  # Use the open pay period
+        pay_period_id = list(self.pay_periods.keys())[0]  # Use any pay period
         
         # Create a payroll item
         payroll_data = {
