@@ -9,6 +9,11 @@ const ReportsCenter = () => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [selectedVendor, setSelectedVendor] = useState('');
+  const [drillDownMode, setDrillDownMode] = useState(false);
   const [filters, setFilters] = useState({
     dateFrom: '',
     dateTo: '',
