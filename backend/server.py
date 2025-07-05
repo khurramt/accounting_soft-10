@@ -900,7 +900,12 @@ async def create_journal_entry(entry: JournalEntry):
 @api_router.get("/journal-entries", response_model=List[JournalEntry])
 async def get_journal_entries():
     entries = await db.journal_entries.find().to_list(1000)
-    return [JournalEntry(**entry) for entry in entries]
+    result = []
+    for entry in entries:
+        if "_id" in entry:
+            del entry["_id"]
+        result.append(JournalEntry(**entry))
+    return result
 
 # Transfer funds endpoint
 @api_router.post("/transfers")
