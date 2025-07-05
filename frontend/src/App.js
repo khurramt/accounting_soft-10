@@ -445,6 +445,30 @@ function App() {
               </li>
               <li>
                 <button
+                  onClick={() => setCurrentPage('pay-bills')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                    currentPage === 'pay-bills' 
+                      ? 'bg-blue-100 text-blue-700 font-medium' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  💸 Pay Bills
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => setCurrentPage('deposits')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                    currentPage === 'deposits' 
+                      ? 'bg-blue-100 text-blue-700 font-medium' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  🏦 Make Deposits
+                </button>
+              </li>
+              <li>
+                <button
                   onClick={() => setCurrentPage('transfers')}
                   className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                     currentPage === 'transfers' 
