@@ -368,8 +368,22 @@ class QBCloneAdvancedPaymentTest(unittest.TestCase):
             "memo": "Payment for consulting services"
         }
         
-        # Submit payment
-        response = requests.post(f"{BACKEND_URL}/payments/receive", params=payment_data)
+        # Submit payment - convert to query parameters
+        query_params = {
+            "customer_id": payment_data["customer_id"],
+            "payment_amount": payment_data["payment_amount"],
+            "payment_method": payment_data["payment_method"],
+            "payment_date": payment_data["payment_date"],
+            "deposit_to_account_id": payment_data["deposit_to_account_id"],
+            "memo": payment_data["memo"]
+        }
+        
+        # Add invoice applications as separate parameters
+        for i, app in enumerate(payment_data["invoice_applications"]):
+            query_params[f"invoice_applications[{i}][invoice_id]"] = app["invoice_id"]
+            query_params[f"invoice_applications[{i}][amount]"] = app["amount"]
+        
+        response = requests.post(f"{BACKEND_URL}/payments/receive", params=query_params)
         self.assertEqual(response.status_code, 200)
         payment_result = response.json()
         
