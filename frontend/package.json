@@ -2,6 +2,7 @@
   "name": "qbclone-desktop",
   "version": "1.0.0",
   "description": "QBClone - Desktop Accounting Application",
+  "author": "QBClone Team",
   "main": "public/main.js",
   "homepage": "./",
   "private": true,
