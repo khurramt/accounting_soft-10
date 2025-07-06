@@ -264,18 +264,20 @@ const WelcomeWizard = ({ onComplete }) => {
         {/* Progress Bar */}
         <div className="px-8 py-6 bg-gray-50 border-b">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
-              {[1, 2, 3].map((step) => (
+            <div className="flex items-center space-x-2">
+              {[1, 2, 3, 4, 5, 6, 7].map((step) => (
                 <div key={step} className="flex items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm ${
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-xs ${
                     step <= currentStep 
                       ? 'bg-blue-600 text-white' 
+                      : step === currentStep + 1 
+                      ? 'bg-blue-200 text-blue-600' 
                       : 'bg-gray-200 text-gray-500'
                   }`}>
                     {step}
                   </div>
-                  {step < 3 && (
-                    <div className={`w-16 h-1 mx-2 ${
+                  {step < 7 && (
+                    <div className={`w-8 h-1 mx-1 ${
                       step < currentStep ? 'bg-blue-600' : 'bg-gray-200'
                     }`} />
                   )}
@@ -283,13 +285,17 @@ const WelcomeWizard = ({ onComplete }) => {
               ))}
             </div>
             <div className="text-sm text-gray-600">
-              Step {currentStep} of 3
+              Step {currentStep} of 7
             </div>
           </div>
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>Company Information</span>
-            <span>Industry & Settings</span>
-            <span>File Preferences</span>
+          <div className="grid grid-cols-7 gap-2 text-xs text-gray-600 text-center">
+            <span>Welcome</span>
+            <span>Company</span>
+            <span>Business</span>
+            <span>Accounts</span>
+            <span>Tax & Finance</span>
+            <span>Preferences</span>
+            <span>Review</span>
           </div>
         </div>
 
