@@ -676,7 +676,17 @@ backend:
         agent: "main"
         comment: "Implemented payroll summary report for analyzing payroll data."
 
-frontend:
+  - task: "Advanced Setup Wizard - Multi-step company setup interview"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/WelcomeWizard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Successfully implemented comprehensive 7-step Advanced Setup Wizard with: Step 1 (Welcome & Business Type), Step 2 (Enhanced Company Information), Step 3 (Business Preferences), Step 4 (Chart of Accounts Setup), Step 5 (Tax & Financial Settings), Step 6 (User Preferences), Step 7 (Review & Complete). Includes business structure selection, industry-specific options, accounting method selection, feature toggles, chart of accounts templates, tax configuration, user preferences, and comprehensive setup summary. Enhanced backend API for saving advanced company setup data."
   - task: "Main Dashboard with Navigation"
     implemented: true
     working: true
