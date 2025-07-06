@@ -1001,7 +1001,7 @@ const WelcomeWizard = ({ onComplete }) => {
               <button
                 onClick={handleNext}
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50"
-                disabled={loading || (currentStep === 1 && !formData.company_name)}
+                disabled={loading || (currentStep === 1 && (!formData.business_structure || !formData.primary_activity)) || (currentStep === 2 && !formData.company_name)}
               >
                 {loading ? (
                   <div className="flex items-center">
@@ -1009,7 +1009,7 @@ const WelcomeWizard = ({ onComplete }) => {
                     Processing...
                   </div>
                 ) : (
-                  currentStep === 3 ? 'Finish Setup' : 'Next'
+                  currentStep === 7 ? 'Create Company' : 'Next'
                 )}
               </button>
             </div>
