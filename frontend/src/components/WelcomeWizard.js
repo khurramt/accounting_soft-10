@@ -304,8 +304,67 @@ const WelcomeWizard = ({ onComplete }) => {
           {currentStep === 1 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome & Business Type</h2>
+                <p className="text-gray-600">Let's start by learning about your business</p>
+              </div>
+              
+              {/* Business Structure */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-4">
+                  What type of business structure do you have?
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {businessStructures.map((structure) => (
+                    <div
+                      key={structure.id}
+                      onClick={() => updateFormData('business_structure', structure.id)}
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        formData.business_structure === structure.id
+                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <div className="text-2xl mb-2">{structure.icon}</div>
+                        <div className="font-medium text-gray-900 text-sm">{structure.name}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Primary Business Activity */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-4">
+                  What's your primary business activity?
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {businessActivities.map((activity) => (
+                    <div
+                      key={activity.id}
+                      onClick={() => updateFormData('primary_activity', activity.id)}
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        formData.primary_activity === activity.id
+                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <div className="text-2xl mb-2">{activity.icon}</div>
+                        <div className="font-medium text-gray-900 text-sm">{activity.name}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Company Information</h2>
-                <p className="text-gray-600">Tell us about your business</p>
+                <p className="text-gray-600">Tell us about your business details</p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -418,68 +477,61 @@ const WelcomeWizard = ({ onComplete }) => {
                   />
                 </div>
               </div>
-            </div>
-          )}
 
-          {currentStep === 2 && (
-            <div className="space-y-6">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Industry & Settings</h2>
-                <p className="text-gray-600">Choose your industry and preferences</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Select Your Industry
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {industries.map((industry) => (
-                    <div
-                      key={industry.id}
-                      onClick={() => updateFormData('industry', industry.id)}
-                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                        formData.industry === industry.id
-                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="text-center">
-                        <div className="text-3xl mb-2">{industry.icon}</div>
-                        <div className="font-medium text-gray-900">{industry.name}</div>
-                      </div>
-                    </div>
-                  ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Website
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.website}
+                    onChange={(e) => updateFormData('website', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="https://www.example.com"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    EIN (Employer Identification Number)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.ein}
+                    onChange={(e) => updateFormData('ein', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="XX-XXXXXXX"
+                  />
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-6 rounded-lg">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Features</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="payroll"
-                      checked={formData.include_payroll}
-                      onChange={(e) => updateFormData('include_payroll', e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="payroll" className="ml-3 text-sm text-gray-700">
-                      Include Payroll Module
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="multicurrency"
-                      checked={formData.multi_currency}
-                      onChange={(e) => updateFormData('multi_currency', e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="multicurrency" className="ml-3 text-sm text-gray-700">
-                      Multi-currency Support
-                    </label>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Business Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.business_start_date}
+                    onChange={(e) => updateFormData('business_start_date', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fiscal Year End
+                  </label>
+                  <select
+                    value={formData.fiscal_year_end}
+                    onChange={(e) => updateFormData('fiscal_year_end', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {fiscalYearOptions.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
