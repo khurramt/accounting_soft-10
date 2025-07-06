@@ -540,6 +540,434 @@ const WelcomeWizard = ({ onComplete }) => {
           {currentStep === 3 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Business Preferences</h2>
+                <p className="text-gray-600">Configure how you want to manage your business</p>
+              </div>
+              
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Accounting Method</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div
+                    onClick={() => updateFormData('accounting_method', 'Cash')}
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      formData.accounting_method === 'Cash'
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <h4 className="font-medium text-gray-900">Cash Basis</h4>
+                    <p className="text-sm text-gray-600 mt-1">Record income when received and expenses when paid</p>
+                  </div>
+                  <div
+                    onClick={() => updateFormData('accounting_method', 'Accrual')}
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      formData.accounting_method === 'Accrual'
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <h4 className="font-medium text-gray-900">Accrual Basis</h4>
+                    <p className="text-sm text-gray-600 mt-1">Record income when earned and expenses when incurred</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Business Features</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="inventory"
+                        checked={formData.track_inventory}
+                        onChange={(e) => updateFormData('track_inventory', e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="inventory" className="ml-3 text-sm text-gray-700">
+                        Track inventory items
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="employees"
+                        checked={formData.have_employees}
+                        onChange={(e) => updateFormData('have_employees', e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="employees" className="ml-3 text-sm text-gray-700">
+                        I have employees
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="salestax"
+                        checked={formData.use_sales_tax}
+                        onChange={(e) => updateFormData('use_sales_tax', e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="salestax" className="ml-3 text-sm text-gray-700">
+                        Charge sales tax
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="time"
+                        checked={formData.track_time}
+                        onChange={(e) => updateFormData('track_time', e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="time" className="ml-3 text-sm text-gray-700">
+                        Track time for projects
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="classes"
+                        checked={formData.use_classes}
+                        onChange={(e) => updateFormData('use_classes', e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="classes" className="ml-3 text-sm text-gray-700">
+                        Use classes for tracking
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="locations"
+                        checked={formData.use_locations}
+                        onChange={(e) => updateFormData('use_locations', e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="locations" className="ml-3 text-sm text-gray-700">
+                        Track multiple locations
+                      </label>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Preferred Currency
+                      </label>
+                      <select
+                        value={formData.preferred_currency}
+                        onChange={(e) => updateFormData('preferred_currency', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="USD">US Dollar (USD)</option>
+                        <option value="CAD">Canadian Dollar (CAD)</option>
+                        <option value="EUR">Euro (EUR)</option>
+                        <option value="GBP">British Pound (GBP)</option>
+                        <option value="AUD">Australian Dollar (AUD)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Chart of Accounts Setup</h2>
+                <p className="text-gray-600">Choose the best account structure for your business</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-4">
+                  Select a Chart of Accounts Template
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {chartTemplates.map((template) => (
+                    <div
+                      key={template.id}
+                      onClick={() => updateFormData('chart_template', template.id)}
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        formData.chart_template === template.id
+                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <h4 className="font-medium text-gray-900">{template.name}</h4>
+                      <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-blue-50 p-6 rounded-lg">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="customize"
+                    checked={formData.customize_accounts}
+                    onChange={(e) => updateFormData('customize_accounts', e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="customize" className="ml-3 text-sm text-blue-700 font-medium">
+                    I want to customize my chart of accounts
+                  </label>
+                </div>
+                <p className="text-sm text-blue-600 mt-2 ml-7">
+                  You can always add, edit, or remove accounts after setup is complete.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {currentStep === 5 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Tax & Financial Settings</h2>
+                <p className="text-gray-600">Configure your tax and financial preferences</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tax ID (SSN or EIN)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.tax_id}
+                    onChange={(e) => updateFormData('tax_id', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="XXX-XX-XXXX or XX-XXXXXXX"
+                  />
+                </div>
+                
+                {formData.use_sales_tax && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Sales Tax Agency
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.sales_tax_agency}
+                      onChange={(e) => updateFormData('sales_tax_agency', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="State Department of Revenue"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Default Bank Account Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.default_bank_account}
+                    onChange={(e) => updateFormData('default_bank_account', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Business Checking"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Opening Balances As Of Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.opening_balance_date}
+                    onChange={(e) => updateFormData('opening_balance_date', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">💡 Tip</h4>
+                <p className="text-sm text-yellow-700">
+                  You can enter your account opening balances after completing the setup. 
+                  Choose a date that represents when you want to start tracking your finances in QBClone.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {currentStep === 6 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">User Preferences</h2>
+                <p className="text-gray-600">Customize how QBClone works for you</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Default Transaction Date
+                  </label>
+                  <select
+                    value={formData.default_transaction_date}
+                    onChange={(e) => updateFormData('default_transaction_date', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="today">Today's date</option>
+                    <option value="last_entered">Last entered date</option>
+                    <option value="blank">Leave blank</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Number Format
+                  </label>
+                  <select
+                    value={formData.number_format}
+                    onChange={(e) => updateFormData('number_format', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="US">US Format (1,234.56)</option>
+                    <option value="EU">European Format (1.234,56)</option>
+                    <option value="SPACE">Space Separated (1 234.56)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date Format
+                  </label>
+                  <select
+                    value={formData.date_format}
+                    onChange={(e) => updateFormData('date_format', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                    <option value="DD-MMM-YYYY">DD-MMM-YYYY</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Dashboard Layout
+                  </label>
+                  <select
+                    value={formData.dashboard_layout}
+                    onChange={(e) => updateFormData('dashboard_layout', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="standard">Standard Layout</option>
+                    <option value="compact">Compact Layout</option>
+                    <option value="detailed">Detailed Layout</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Security & Access</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="multiuser"
+                      checked={formData.multi_user}
+                      onChange={(e) => updateFormData('multi_user', e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="multiuser" className="ml-3 text-sm text-gray-700">
+                      Enable multi-user mode
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="audit"
+                      checked={formData.audit_trail}
+                      onChange={(e) => updateFormData('audit_trail', e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="audit" className="ml-3 text-sm text-gray-700">
+                      Enable audit trail (recommended)
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {currentStep === 7 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Review & Complete</h2>
+                <p className="text-gray-600">Review your setup and complete the configuration</p>
+              </div>
+              
+              {/* Setup Summary */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Setup Summary</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Company Information</h4>
+                    <p><span className="text-gray-600">Company:</span> {formData.company_name}</p>
+                    <p><span className="text-gray-600">Business Type:</span> {businessStructures.find(b => b.id === formData.business_structure)?.name || 'Not selected'}</p>
+                    <p><span className="text-gray-600">Activity:</span> {businessActivities.find(a => a.id === formData.primary_activity)?.name || 'Not selected'}</p>
+                    <p><span className="text-gray-600">Email:</span> {formData.email || 'Not provided'}</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Business Preferences</h4>
+                    <p><span className="text-gray-600">Accounting Method:</span> {formData.accounting_method}</p>
+                    <p><span className="text-gray-600">Currency:</span> {formData.preferred_currency}</p>
+                    <p><span className="text-gray-600">Chart Template:</span> {chartTemplates.find(c => c.id === formData.chart_template)?.name || 'General'}</p>
+                    <p><span className="text-gray-600">Fiscal Year End:</span> {formData.fiscal_year_end}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Feature Summary */}
+              <div className="bg-blue-50 p-6 rounded-lg">
+                <h3 className="text-lg font-medium text-blue-900 mb-4">Enabled Features</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                  {formData.track_inventory && <span className="text-blue-700">✓ Inventory Tracking</span>}
+                  {formData.have_employees && <span className="text-blue-700">✓ Employee Management</span>}
+                  {formData.use_sales_tax && <span className="text-blue-700">✓ Sales Tax</span>}
+                  {formData.track_time && <span className="text-blue-700">✓ Time Tracking</span>}
+                  {formData.use_classes && <span className="text-blue-700">✓ Class Tracking</span>}
+                  {formData.use_locations && <span className="text-blue-700">✓ Location Tracking</span>}
+                  {formData.multi_user && <span className="text-blue-700">✓ Multi-user Access</span>}
+                  {formData.audit_trail && <span className="text-blue-700">✓ Audit Trail</span>}
+                </div>
+              </div>
+
+              {/* Next Steps */}
+              <div className="bg-green-50 p-6 rounded-lg">
+                <h3 className="text-lg font-medium text-green-900 mb-4">🎉 You're Almost Ready!</h3>
+                <p className="text-green-700 mb-4">
+                  After completing setup, you'll be able to:
+                </p>
+                <ul className="text-sm text-green-700 space-y-1">
+                  <li>• Add your first customers and vendors</li>
+                  <li>• Set up your chart of accounts with opening balances</li>
+                  <li>• Create your first invoice or bill</li>
+                  <li>• Connect your bank accounts</li>
+                  <li>• Start tracking your business finances</li>
+                </ul>
+              </div>
+            </div>
+          )}
+            <div className="space-y-6">
+              <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">File Preferences</h2>
                 <p className="text-gray-600">Configure your company file settings</p>
               </div>
