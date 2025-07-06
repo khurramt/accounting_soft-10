@@ -153,7 +153,7 @@ const WelcomeWizard = ({ onComplete }) => {
     setError('');
     
     try {
-      // Create company record
+      // Create company record with enhanced data
       const companyData = {
         name: formData.company_name,
         legal_name: formData.legal_name,
@@ -165,10 +165,34 @@ const WelcomeWizard = ({ onComplete }) => {
         phone: formData.phone,
         fax: formData.fax,
         email: formData.email,
-        industry: formData.industry,
+        industry: formData.primary_activity || 'general',
         settings: {
-          include_payroll: formData.include_payroll,
-          multi_currency: formData.multi_currency,
+          business_type: formData.business_type,
+          business_structure: formData.business_structure,
+          primary_activity: formData.primary_activity,
+          website: formData.website,
+          ein: formData.ein,
+          state_of_incorporation: formData.state_of_incorporation,
+          business_start_date: formData.business_start_date,
+          fiscal_year_end: formData.fiscal_year_end,
+          accounting_method: formData.accounting_method,
+          track_inventory: formData.track_inventory,
+          have_employees: formData.have_employees,
+          use_sales_tax: formData.use_sales_tax,
+          preferred_currency: formData.preferred_currency,
+          track_time: formData.track_time,
+          use_classes: formData.use_classes,
+          use_locations: formData.use_locations,
+          chart_template: formData.chart_template,
+          customize_accounts: formData.customize_accounts,
+          tax_id: formData.tax_id,
+          sales_tax_agency: formData.sales_tax_agency,
+          default_bank_account: formData.default_bank_account,
+          opening_balance_date: formData.opening_balance_date,
+          default_transaction_date: formData.default_transaction_date,
+          number_format: formData.number_format,
+          date_format: formData.date_format,
+          dashboard_layout: formData.dashboard_layout,
           multi_user: formData.multi_user,
           audit_trail: formData.audit_trail,
           encrypt_file: formData.encrypt_file
@@ -177,9 +201,15 @@ const WelcomeWizard = ({ onComplete }) => {
 
       await axios.post(`${API}/company`, companyData);
       
+      // Create default chart of accounts based on template
+      if (formData.chart_template && formData.chart_template !== 'general') {
+        await createDefaultAccounts(formData.chart_template);
+      }
+      
       // Store company setup completion
       localStorage.setItem('qbclone_company_setup', 'completed');
       localStorage.setItem('qbclone_company_name', formData.company_name);
+      localStorage.setItem('qbclone_setup_data', JSON.stringify(companyData.settings));
       
       onComplete();
     } catch (err) {
@@ -187,6 +217,29 @@ const WelcomeWizard = ({ onComplete }) => {
       console.error('Company creation error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createDefaultAccounts = async (template) => {
+    try {
+      // This would create industry-specific accounts
+      // For now, we'll just ensure basic accounts exist
+      const basicAccounts = [
+        { name: 'Checking Account', account_type: 'Asset', detail_type: 'Checking' },
+        { name: 'Accounts Receivable', account_type: 'Asset', detail_type: 'Accounts Receivable' },
+        { name: 'Accounts Payable', account_type: 'Liability', detail_type: 'Accounts Payable' },
+        { name: 'Sales Income', account_type: 'Income', detail_type: 'Sales' }
+      ];
+
+      for (const account of basicAccounts) {
+        try {
+          await axios.post(`${API}/accounts`, account);
+        } catch (error) {
+          console.log('Account may already exist:', account.name);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating default accounts:', error);
     }
   };
 
