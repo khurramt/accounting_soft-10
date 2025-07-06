@@ -135,7 +135,7 @@ const WelcomeWizard = ({ onComplete }) => {
   };
 
   const handleNext = () => {
-    if (currentStep < 3) {
+    if (currentStep < 7) {
       setCurrentStep(currentStep + 1);
     } else {
       handleFinish();
