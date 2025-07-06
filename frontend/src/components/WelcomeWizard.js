@@ -66,16 +66,73 @@ const WelcomeWizard = ({ onComplete }) => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [availableAccounts, setAvailableAccounts] = useState([]);
 
-  const industries = [
-    { id: 'general', name: 'General Business', icon: '🏢' },
-    { id: 'contractor', name: 'Contractor', icon: '🔨' },
-    { id: 'nonprofit', name: 'Nonprofit', icon: '🤝' },
-    { id: 'manufacturing', name: 'Manufacturing', icon: '🏭' },
-    { id: 'retail', name: 'Retail', icon: '🛍️' },
-    { id: 'professional', name: 'Professional Services', icon: '💼' },
-    { id: 'accountant', name: 'Accountant', icon: '📊' }
+  // Business structures
+  const businessStructures = [
+    { id: 'sole_proprietorship', name: 'Sole Proprietorship', icon: '👤' },
+    { id: 'partnership', name: 'Partnership', icon: '🤝' },
+    { id: 'llc', name: 'Limited Liability Company (LLC)', icon: '🏢' },
+    { id: 'corporation', name: 'Corporation', icon: '🏛️' },
+    { id: 's_corp', name: 'S Corporation', icon: '📊' },
+    { id: 'nonprofit', name: 'Nonprofit Organization', icon: '❤️' }
   ];
+
+  // Business activities  
+  const businessActivities = [
+    { id: 'general', name: 'General Business', icon: '🏢' },
+    { id: 'consulting', name: 'Consulting & Professional Services', icon: '💼' },
+    { id: 'retail', name: 'Retail & E-commerce', icon: '🛍️' },
+    { id: 'manufacturing', name: 'Manufacturing', icon: '🏭' },
+    { id: 'construction', name: 'Construction & Contracting', icon: '🔨' },
+    { id: 'restaurant', name: 'Restaurant & Food Service', icon: '🍽️' },
+    { id: 'healthcare', name: 'Healthcare & Medical', icon: '🏥' },
+    { id: 'real_estate', name: 'Real Estate', icon: '🏘️' },
+    { id: 'automotive', name: 'Automotive Services', icon: '🚗' },
+    { id: 'technology', name: 'Technology & Software', icon: '💻' },
+    { id: 'education', name: 'Education & Training', icon: '🎓' },
+    { id: 'nonprofit', name: 'Nonprofit', icon: '🤝' }
+  ];
+
+  // Chart of accounts templates
+  const chartTemplates = [
+    { id: 'general', name: 'General Business', description: 'Standard chart for most businesses' },
+    { id: 'retail', name: 'Retail', description: 'Optimized for retail and inventory businesses' },
+    { id: 'service', name: 'Service Business', description: 'Perfect for consulting and service companies' },
+    { id: 'manufacturing', name: 'Manufacturing', description: 'Includes cost of goods and manufacturing accounts' },
+    { id: 'construction', name: 'Construction', description: 'Job costing and construction-specific accounts' },
+    { id: 'nonprofit', name: 'Nonprofit', description: 'Fund accounting and nonprofit requirements' }
+  ];
+
+  // Fiscal year options
+  const fiscalYearOptions = [
+    { value: 'January', label: 'January (Calendar Year)' },
+    { value: 'February', label: 'February' },
+    { value: 'March', label: 'March' },
+    { value: 'April', label: 'April' },
+    { value: 'May', label: 'May' },
+    { value: 'June', label: 'June' },
+    { value: 'July', label: 'July' },
+    { value: 'August', label: 'August' },
+    { value: 'September', label: 'September' },
+    { value: 'October', label: 'October' },
+    { value: 'November', label: 'November' },
+    { value: 'December', label: 'December' }
+  ];
+
+  useEffect(() => {
+    // Load existing accounts for chart of accounts customization
+    loadAccounts();
+  }, []);
+
+  const loadAccounts = async () => {
+    try {
+      const response = await axios.get(`${API}/accounts`);
+      setAvailableAccounts(response.data);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+    }
+  };
 
   const handleNext = () => {
     if (currentStep < 3) {
