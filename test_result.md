@@ -337,6 +337,21 @@ backend:
         agent: "main"
         comment: "Implemented bank import endpoints for importing bank statements in CSV and QFX/OFX formats and confirming the import of transactions."
 
+  - task: "Advanced Setup Wizard - Enhanced Company Creation API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested the enhanced company creation endpoint for the Advanced Setup Wizard. The endpoint properly accepts and stores all advanced setup data including business structure, enhanced company details, business preferences, chart of accounts template, tax settings, user preferences, and security settings. All data types and optional fields are handled correctly, and the company data is retrievable with GET /api/company."
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented enhanced company creation endpoint to handle all advanced setup wizard data including business structure, company details, preferences, chart of accounts templates, tax settings, user preferences, and security settings."
+        
   - task: "Reconciliation Reports API"
     implemented: true
     working: true
