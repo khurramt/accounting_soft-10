@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -7,7 +7,12 @@ const API = `${BACKEND_URL}/api`;
 const WelcomeWizard = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    // Step 1: Basic Info
+    // Step 1: Business Type
+    business_type: '',
+    business_structure: '',
+    primary_activity: '',
+    
+    // Step 2: Company Information (Enhanced)
     company_name: '',
     legal_name: '',
     address: '',
@@ -18,14 +23,40 @@ const WelcomeWizard = ({ onComplete }) => {
     phone: '',
     fax: '',
     email: '',
+    website: '',
+    ein: '',
+    state_of_incorporation: '',
+    business_start_date: '',
+    fiscal_year_end: 'December',
     
-    // Step 2: Industry & Settings
-    industry: 'general',
-    include_payroll: false,
-    multi_currency: false,
+    // Step 3: Business Preferences
+    accounting_method: 'Accrual',
+    track_inventory: false,
+    have_employees: false,
+    use_sales_tax: false,
+    preferred_currency: 'USD',
+    track_time: false,
+    use_classes: false,
+    use_locations: false,
     
-    // Step 3: File Settings
-    file_location: '',
+    // Step 4: Chart of Accounts
+    chart_template: 'general',
+    customize_accounts: false,
+    custom_accounts: [],
+    
+    // Step 5: Tax & Financial Settings
+    tax_id: '',
+    sales_tax_agency: '',
+    default_bank_account: '',
+    opening_balance_date: '',
+    
+    // Step 6: User Preferences
+    default_transaction_date: 'today',
+    number_format: 'US',
+    date_format: 'MM/DD/YYYY',
+    dashboard_layout: 'standard',
+    
+    // Step 7: Legacy settings
     multi_user: false,
     audit_trail: true,
     encrypt_file: false,
